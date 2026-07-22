@@ -16,7 +16,7 @@
 - 출시 로스터 22명 / 보너스 6명 (관계망 페어 단위 — 기획서 27장)
 
 ## 폴더 구조·네임스페이스·네이밍 (S01 확정)
-- **폴더**: `Assets/Scripts`(코드, asmdef `WizardGarden`) · `Assets/Scripts/Core`(enum·구조체) · `Assets/Scripts/Data`(SO 정의) · `Assets/Scripts/Editor`(에디터 전용, asmdef `WizardGarden.Editor`) · `Assets/Data`(SO 에셋 — Plants/Potions/… 타입별 하위 폴더) · `Assets/Art/Placeholders` · `Assets/Tests`(EditMode, asmdef `WizardGarden.Tests`)
+- **폴더**: `Assets/Scripts`(MonoBehaviour 어댑터, asmdef `WizardGarden`) · `Assets/Scripts/Core`(enum·구조체·순수 C# 로직 — 테스트 가능 코어) · `Assets/Scripts/Data`(SO 정의) · `Assets/Scripts/Editor`(에디터 전용, asmdef `WizardGarden.Editor`) · `Assets/Data`(SO 에셋 — Plants/Potions/… 타입별 하위 폴더) · `Assets/Art/Placeholders` · `Assets/Tests`(EditMode, asmdef `WizardGarden.Tests`)
 - **네임스페이스**: `WizardGarden.Core`(공용 타입) / `WizardGarden.Data`(SO) / `WizardGarden.EditorTools`(에디터) / `WizardGarden.Tests`
 - **C# 네이밍**: 클래스·메서드·프로퍼티 PascalCase. **직렬화(인스펙터 노출) 필드는 camelCase, 비직렬화 private 필드는 _camelCase**. SO 데이터 클래스는 순수 데이터 컨테이너로 취급 — public camelCase 필드 + `[Tooltip]` 한국어 설명
 - **SO 에셋 네이밍**: 파일명 `타입_영문PascalCase` (예: `Plant_EmberGrass`), `id` 필드는 `타입접두어_snake_case` (예: `plant_ember_grass`) — 세이브·크로스 참조는 항상 `id` 기준
