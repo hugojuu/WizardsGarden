@@ -1,8 +1,17 @@
 # 진행 상태
 
-**현재**: S04 구현 완료 → **방향 전환**으로 재미 판정은 **S04b(맵 화면 전환)**로 이월 — 다음 세션은 **S04b**
+**현재**: S04b(맵 화면 전환) 구현 완료 — **★유저 10분 재미 판정 대기** (M1 관문, 통과 전 S05 진행 금지). 판정 결과를 이 파일에 기록할 것
 
 ## 완료된 세션
+- **S04b — 맵 화면 전환 (Rusty형 프레젠테이션)** (2026-07-23) ★ M1 재검증
+  - 신규 어댑터 (`Assets/Scripts`, ns `WizardGarden` — **코어 로직 무변경**, 전부 GameSession API 호출로만 동작):
+    `MapScreen`(맵 오케스트레이터 — 월드 스페이스 구축·매 프레임 폴링 갱신·손님 tick·클릭 라우팅. 스모크 공용 API: `HandleWorldClick`/`GardenTileWorldPosition`/`BenchWorldPosition`/`ShopSlotWorldPosition`/`Popup`) · `MapTile`(클릭 대상 마커: GardenTile/Bench/ShopSlot + index, BoxCollider2D와 함께) · `MapPopup`(모달 목록 팝업 uGUI — 종자/가공/진열/확장 공용, 열 때마다 재구성, **닫은 뒤 액션 실행** — 해금 액션이 팝업을 다시 열어 목록 갱신) · `MapHud`(맵과 분리된 uGUI 레이어: 시계·골드·창고·힌트, 표시 전용 — 값은 MapScreen이 푸시) · `MapCustomerFx`(손님 연출: 판매 시 상점 앞 등장→2.6초 상승·페이드 — 유닛 AI는 S09) · `MapPlaceholderFactory`(흰 사각형 스프라이트 + 월드 TextMesh 생성 유틸)
+  - 에디터: `MapSceneBootstrap` — 메뉴 **WizardGarden > Setup Map Scene (S04b)** (카메라 가로 구도·MapScreen 배치·SO 5+4종 연결·GameScreen 비활성, 재실행 안전) + **WizardGarden > Toggle Debug Screen (Play)**
+  - **GameScreen 탭 UI → 디버그 화면 강등**: 씬에서 비활성 (삭제 안 함) — 플레이 중 **F12** 또는 위 메뉴로 토글. 비활성 상태라 Start 미실행 → 첫 토글 때 초기화됨
+  - Player 설정 **`runInBackground = true`** (S04 인계 — 에디터/앱 무포커스 시 시간 정지 해소, 방치형 필수)
+  - 세이브 변경 없음 (v3 그대로)
+  - 검증: 컴파일 에러/경고 0 · EditMode **110/110 통과** (코어 무변경 증명) · 플레이 모드 스모크: **맵 클릭 경로만으로** 심기→수확→가공(마른 화염잎 30개)→진열(3칸×10)→판매 150G→밭 확장 20G(슬롯 5)→티어2 해금 100G→화염 양귀비 심기·수확까지 실제 실행. 디버그 화면 토글 확인. 스크린샷 `Captures/S04b_1~5_*.png` (git 미추적). 스모크 세이브는 삭제, 기존 세이브 원복
+  - 완료 기준 대비: 풀 루프 맵 커서 조작 ✅ · **★10분 재미 판정은 유저 몫 — 미판정**
 - **S04 — 공방 + 상점 → 수직 슬라이스** (2026-07-22) ★ M1
   - 순수 C# 코어 신규 (`Assets/Scripts/Core`): `Wallet`(골드 long — 경제 곡선 억 단위 대비, Add/TrySpend/CanAfford, Changed 이벤트) · `Workshop`(작업대 1개 — 시작 시 원료 소비, 출력 id·수량·시작 자원초만 저장, 진행도는 파생 계산 — GardenSlot과 동일 방침. processingSeconds는 SO 소관, 호출 시 전달) · `Shop`(진열대 3칸 + 손님 방문 타이머 — 자원초 기반 10초 주기, 손님 1명 = 첫 비어있지 않은 칸에서 한 종류 최대 5개 구매, 가격 조회는 델리게이트 주입. 빈 진열 방문도 주기 소모 → 밀린 손님 몰림 없음) · `UnlockState`(해금 id 집합, 중복 지불 방지) · `EconomyFormulas`(Cost(n) = 20 × 1.15^n 반올림 — 기획서 8장)
   - 코어 확장: `Inventory.TryRemove`(S03 인계 — 부족 시 실패, 0이 되면 항목 삭제) · `Garden.TryAddSlot` + `MaxSlotCount = 12`(플레이스홀더 UI 3×4 그리드 한계) · `GameSession`에 Wallet/Workshop/Shop/Unlocks 소유 + `NextGardenSlotCost`/`TryBuyGardenSlot`/`TryPurchaseUnlock`
@@ -34,6 +43,10 @@
   - 완료 기준 대비: 폴더/스키마/컨벤션 기록 ✅ · 컴파일 클린 ✅ (dotnet 교차 빌드 0에러/0경고 + Editor.log에서 Unity 컴파일 성공 확인) · 샘플 SO 에셋 ✅ (2026-07-22 MCP 연결 후 부트스트랩 실행 — 5종 생성·값 검증·EditMode 테스트 6/6 통과)
 
 ## 세션 간 인계 메모
+- (S04b→S05) 조합 UI 진입점은 **작업대 클릭** (기획서 2-2장: 작업대/가마솥 클릭 = 조합 UI 창). 현재 `MapScreen.OnBenchClicked`가 idle이면 1차 가공 팝업을 여는데, S05는 여기서 조합 창으로 확장/분기할 것. `MapPopup`은 단순 목록형 — 자유 투입·발견형 조합 UI는 별도 창이 필요
+- (S04b→S09) 견습생 유닛 세션 참조점: 맵 좌표계·구도 상수는 `MapScreen` 상단 const (정원 중심 -4.4,-0.4 / 작업대 3.1,1.7 / 진열대 행 4.6,-2.2 / 손님 지점 1.6,-3.35), 소팅오더 규약 = 지면 -100 · 구역 패치 -50 · 구역 라벨 -40 · 소품 -30 · 타일/시설 0~8 · 유닛(fx) 20~21. `MapCustomerFx`는 임시 연출 — S09 유닛 AI로 대체·확장
+- (S04b) 배속 치트·오프라인 정산으로 손님 주기 여러 개가 **한 프레임에 몰리면** fx 라벨이 겹침 (x −0.85 간격 스폰). 실플레이(10초 간격)에선 1명씩이라 문제 없음 — S08 오프라인 정산 요약 팝업이 근본 해결
+- (S04b) 디버그 화면(GameScreen)이 활성인 동안엔 MapScreen이 월드 클릭을 무시함. 둘 다 같은 `Shop.TickCustomers`를 호출하지만 주기 소모는 선착 한쪽만 (멱등 — 이중 판매 없음)
 - (S04→S05/S06) 조합·포션 세션에서 쓸 접점: 재료 소비는 `Inventory.TryRemove`, 산출 골드는 `Wallet.Add`, 포션 진열·판매는 상점이 이미 **ItemData 공통**으로 동작(가격 = baseValue, 이모지 = displayEmoji)이라 `GameScreen._itemsById`에 포션 SO만 등록되면 그대로 팔림 — 현재 등록 소스는 `seedOptions`+`recipeOptions`뿐이므로 포션 목록 필드 추가 필요. 조건 게이트(night_only 등)는 `GameClockRunner.Instance.Clock.CurrentTimeOfDay` 참조
 - (S04→S05) `Workshop`은 "출력 1종·원료 1종" 단순 모델 — 포션 조합(재료 여러 종·조건 게이트)은 Workshop 재사용이 아니라 별도 조합 시스템으로 만들 것 (공방 작업대는 가공 전용 유지)
 - (S04→S08) 오프라인 정산 시 손님 방문도 정산 대상이 되면 `Shop.TickCustomers`가 그대로 처리함(경과 주기만큼 방문·재고 소진 시 자동 중단). 단 `AddResourceSeconds`로 자원초를 얹은 **다음 프레임**에 GameScreen.Update가 일괄 처리하는 구조라, 정산 연출(요약 팝업)을 원하면 Update 처리 전에 Core에서 직접 TickCustomers를 호출해 SaleRecord 목록을 회수할 것
@@ -51,6 +64,9 @@
 - (S03→S04) 심기 가능한 종자 목록·growthSeconds 조회는 `GardenScreen.seedOptions`(인스펙터 SO 참조)가 유일한 소스. 세이브에 있는데 목록에 없는 식물 id는 경고 후 즉시 수확 가능 처리(세이브 잠김 방지)
 
 ## 개발 중 바뀐 결정
+- (S04b) **맵 좌표계·구도**: 월드 유닛 기준, 카메라 orthographic size 5(세로 10유닛) 고정 — 16:9에서 가로 ±8.9유닛 안에 전 구도 배치 (좌측 정원 3×4 그리드, 우상 공방, 우하 상점). 화면비가 더 좁으면 `MapScreen.SetupCamera`가 세로를 늘려 **가로 전폭을 보존** (미니 모드 대비 가로 구도 우선). 밭 12칸(상한)은 처음부터 전부 타일로 배치 — SlotCount 이후는 🔒 잠금 표시, 다음 구매 칸에만 가격 라벨, 잠긴 칸 클릭 = 확장 확인 팝업
+- (S04b) **클릭 처리 = 중앙 레이캐스트**: 오브젝트별 OnMouseDown 대신 MapScreen이 Input System(`Mouse.current`)으로 `Physics2D.OverlapPoint` → `MapTile` 마커(종류+인덱스) → 라우팅. 팝업 열림·디버그 화면 활성·포인터가 uGUI 위면 월드 클릭 무시. 스모크 테스트도 같은 `HandleWorldClick` 경로 사용 (마우스 핸들러와 코드 공유)
+- (S04b) **맵 텍스트 = TextMesh(레거시)** — 맵 오브젝트 uGUI 금지 방침. 이모지 글리프는 환경 따라 대체 문양으로 보일 수 있어 한글 라벨 병기 규약(S03) 유지. 성장 시각화 = 타일 안 식물 사각형 스케일(0.45/0.8/1.05) + 원소색 농도 + 이모지(🌱→식물) + 라벨(%→수확!)
 - **(방향 전환, 2026-07-22) 프레젠테이션 = Rusty's Retirement형 맵+유닛으로 확정** — 기획서 2-2장 신설 (유저 결정: 커서 지시형·전체화면 기본·미니 모드 대비 가로 구도·조합만 UI 창). S03~S04의 코어 로직·테스트 110개는 전부 유지, `GameScreen` 탭 UI는 S04b에서 디버그 화면으로 강등. S04의 유저 재미 판정은 미실시 — **S04b 완료 후 맵 화면으로 재검증**. S09 브리프는 견습생 유닛 행동 포함으로 개정, S04b 브리프 신설
 - (S04) **수치 결정** (기획서에 없는 값 — 재미 판정 후 조정 대상): 1차 가공 시간 **8초**(티어1 성장 3초의 ~2.7배 — 작업대 1개가 자연 병목이 되어 가마솥 추가·자동화 업그레이드 여지, 10분 안에 수십 사이클 가능) · 마른 잎 가치 **5G**(티어1 1G ×5 — 기획서 5장 ×4~5 상단) · 손님 주기 **10자원초**·1회 최대 **5개** 구매(가공품만 팔면 ~150G/10분 선 — 티어2 해금이 10분 판정 내에 옴) · 진열 1클릭 = 최대 **10개** 이동 · 밭 슬롯 기본가 **20G**(1.15^n: 20→23→26→30→35→40…) · 티어2 종자 해금 **100G**(기획서 8장 "티어 도약 = 수입 5~10분 분량"에 맞춤) · 밭 슬롯 상한 **12칸**(S04 UI 한계, 코어 상수라 상향 쉬움)
 - (S04) **`displayEmoji`를 PlantData → `ItemData`(베이스)로 승격** — 재료·포션도 플레이스홀더 표시가 필요. 직렬화 필드명이 같아 기존 식물 에셋 값은 그대로 보존됨

@@ -200,7 +200,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 0.14, g: 0.2, b: 0.13, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -251,6 +251,61 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &580096918
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 580096920}
+  - component: {fileID: 580096919}
+  m_Layer: 0
+  m_Name: MapScreen
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &580096919
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 580096918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b570c1672009f1479c148a71199a00c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.MapScreen
+  seedOptions:
+  - {fileID: 11400000, guid: b7f4c82bf2be68146899bae5ed9f9733, type: 2}
+  - {fileID: 11400000, guid: ad9555303cec8524ba3d5476e609eb2b, type: 2}
+  - {fileID: 11400000, guid: cc73576f31a494b498b9744f317e33af, type: 2}
+  - {fileID: 11400000, guid: c06bff75e62be8842b7f6db07c7aa276, type: 2}
+  - {fileID: 11400000, guid: 277cf6fff306dab4b98f529465f2001f, type: 2}
+  recipeOptions:
+  - {fileID: 11400000, guid: 986e15e60387cec479e73806d96b0bf4, type: 2}
+  - {fileID: 11400000, guid: 29490521d50975b49961894df5914ff1, type: 2}
+  - {fileID: 11400000, guid: 0b16e9c7cf0966b46ae0efc0737f6c0c, type: 2}
+  - {fileID: 11400000, guid: 4b279e5ad656070418e76fa49a327680, type: 2}
+--- !u!4 &580096920
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 580096918}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -356,7 +411,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1831456034
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -402,3 +457,4 @@ SceneRoots:
   - {fileID: 519420032}
   - {fileID: 619394802}
   - {fileID: 1831456035}
+  - {fileID: 580096920}
