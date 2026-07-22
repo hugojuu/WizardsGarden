@@ -19,6 +19,18 @@ namespace WizardGarden.Core
         /// <summary>수확물 인벤토리 (S03).</summary>
         public Inventory Inventory { get; }
 
+        /// <summary>골드 지갑 (S04).</summary>
+        public Wallet Wallet { get; }
+
+        /// <summary>공방 작업대 (S04).</summary>
+        public Workshop Workshop { get; }
+
+        /// <summary>상점 진열대·손님 (S04).</summary>
+        public Shop Shop { get; }
+
+        /// <summary>골드 해금 상태 (S04).</summary>
+        public UnlockState Unlocks { get; }
+
         /// <summary>Begin에서 세이브를 복원했는가 (false = 새 게임).</summary>
         public bool LoadedFromSave { get; private set; }
 
@@ -32,6 +44,10 @@ namespace WizardGarden.Core
             Clock = new GameClock();
             Garden = new Garden();
             Inventory = new Inventory();
+            Wallet = new Wallet();
+            Workshop = new Workshop();
+            Shop = new Shop();
+            Unlocks = new UnlockState();
         }
 
         /// <summary>세이브가 있으면 복원 + 오프라인 경과 계산, 없으면 새 게임 상태.</summary>
@@ -42,6 +58,10 @@ namespace WizardGarden.Core
                 Clock.RestoreFrom(data);
                 Garden.RestoreFrom(data);
                 Inventory.RestoreFrom(data);
+                Wallet.RestoreFrom(data);
+                Workshop.RestoreFrom(data);
+                Shop.RestoreFrom(data);
+                Unlocks.RestoreFrom(data);
                 PendingOfflineSeconds = ComputeOfflineSeconds(data.lastSavedUtcTicks, _utcClock.UtcNow);
                 LoadedFromSave = true;
             }
@@ -59,6 +79,10 @@ namespace WizardGarden.Core
             Clock.WriteTo(data);
             Garden.WriteTo(data);
             Inventory.WriteTo(data);
+            Wallet.WriteTo(data);
+            Workshop.WriteTo(data);
+            Shop.WriteTo(data);
+            Unlocks.WriteTo(data);
             data.lastSavedUtcTicks = _utcClock.UtcNow.Ticks;
             _repository.Save(data);
         }
@@ -77,6 +101,25 @@ namespace WizardGarden.Core
 
             Inventory.Add(harvestedPlantId);
             return true;
+        }
+
+        /// <summary>다음 밭 슬롯 구매 비용 — Cost(n) = Base × 1.15^n, n = 이미 구매한 슬롯 수 (기획서 8장).</summary>
+        public int NextGardenSlotCost => EconomyFormulas.GardenSlotCost(Garden.SlotCount - Garden.InitialSlotCount);
+
+        /// <summary>골드를 지불하고 밭 슬롯 1칸 확장 (상한·잔액 판정 포함).</summary>
+        public bool TryBuyGardenSlot()
+        {
+            if (Garden.SlotCount >= Garden.MaxSlotCount)
+                return false;
+            if (!Wallet.TrySpend(NextGardenSlotCost))
+                return false;
+            return Garden.TryAddSlot();
+        }
+
+        /// <summary>골드를 지불하고 아이템(종자 등) 해금 — 이미 해금됐으면 false (중복 지불 방지).</summary>
+        public bool TryPurchaseUnlock(string itemId, int cost)
+        {
+            return Unlocks.TryPurchaseUnlock(itemId, cost, Wallet);
         }
 
         /// <summary>S08 오프라인 정산 완료 후 호출.</summary>

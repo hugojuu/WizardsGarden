@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 98dfe3eb926e43f46a3f4f03f962ec43, type: 3}
-  m_Name: Plant_DandelionPuff
+  m_Name: Plant_FlamePoppy
   m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.PlantData
-  id: plant_dandelion_puff
-  displayName: "\uBBFC\uB4E4\uB808 \uD640\uC528"
+  id: plant_flame_poppy
+  displayName: "\uD654\uC5FC \uC591\uADC0\uBE44"
   composition:
-    fire: 0
+    fire: 2
     water: 0
     earth: 0
-    wind: 1
+    wind: 0
     star: 0
-  baseValue: 1
-  displayEmoji: "\U0001F4A8"
-  tier: 1
-  growthSeconds: 3
-  unlockCost: 0
+  baseValue: 8
+  displayEmoji: "\U0001F33A"
+  tier: 2
+  growthSeconds: 15
+  unlockCost: 100

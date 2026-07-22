@@ -15,8 +15,8 @@ namespace WizardGarden.Data
         [Min(0f)]
         public float growthSeconds = 3f;
 
-        [Header("표시 (플레이스홀더)")]
-        [Tooltip("플레이스홀더 표시용 이모지 — UI는 이 필드를 참조해서만 표시 (정식 아트로 후반 교체)")]
-        public string displayEmoji = "🌱";
+        [Tooltip("종자 해금 비용 (골드) — 0이면 처음부터 심을 수 있음 (티어1)")]
+        [Min(0)]
+        public int unlockCost = 0;
     }
 }

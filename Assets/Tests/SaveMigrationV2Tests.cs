@@ -35,13 +35,7 @@ namespace WizardGarden.Tests
         }
 
         [Test]
-        public void CurrentVersion_IsTwo()
-        {
-            Assert.AreEqual(2, SaveData.CurrentVersion);
-        }
-
-        [Test]
-        public void TryMigrate_V1_UpgradesToV2WithEmptyGardenAndInventory()
+        public void TryMigrate_V1_UpgradesWithEmptyGardenAndInventory()
         {
             var data = new SaveData
             {
@@ -53,7 +47,7 @@ namespace WizardGarden.Tests
             };
 
             Assert.IsTrue(SaveMigrator.TryMigrate(data));
-            Assert.AreEqual(2, data.version);
+            Assert.AreEqual(SaveData.CurrentVersion, data.version);
             Assert.IsNotNull(data.gardenSlots);
             Assert.IsNotNull(data.inventoryItems);
             Assert.AreEqual(0, data.gardenSlots.Count);

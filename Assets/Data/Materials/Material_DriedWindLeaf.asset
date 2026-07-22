@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e36bbae04cc85646a991720ab2ebc42, type: 3}
+  m_Name: Material_DriedWindLeaf
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.MaterialData
+  id: material_dried_wind_leaf
+  displayName: "\uB9C8\uB978 \uBC14\uB78C\uC78E"
+  composition:
+    fire: 0
+    water: 0
+    earth: 0
+    wind: 1
+    star: 0
+  baseValue: 5
+  displayEmoji: "\U0001F342"
+  processingStage: 1
+  sourceItem: {fileID: 11400000, guid: c06bff75e62be8842b7f6db07c7aa276, type: 2}
+  sourceCount: 1
+  processingSeconds: 8

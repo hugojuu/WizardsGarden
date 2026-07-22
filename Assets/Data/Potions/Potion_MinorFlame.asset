@@ -21,6 +21,7 @@ MonoBehaviour:
     wind: 0
     star: 0
   baseValue: 50
+  displayEmoji: "\U0001F9EA"
   category: 0
   requiredIngredients: []
   conditionTags: []

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace WizardGarden.Core
 {
     /// <summary>
-    /// 수확물 인벤토리 기초 (순수 C#) — id → 수량. 제거·판매는 S04.
+    /// 인벤토리 (순수 C#) — id → 수량. 추가(S03) + 소비(S04: 가공·진열).
     /// SortedDictionary로 나열·세이브 순서를 id 기준 결정적으로 유지.
     /// </summary>
     public sealed class Inventory
@@ -33,6 +33,25 @@ namespace WizardGarden.Core
 
             _counts[itemId] = GetCount(itemId) + count;
             Changed?.Invoke();
+        }
+
+        /// <summary>수량 제거 (S04 — 가공·진열 소비용). 보유량 부족·잘못된 인자는 false, 0이 되면 항목 삭제.</summary>
+        public bool TryRemove(string itemId, int count = 1)
+        {
+            if (string.IsNullOrEmpty(itemId) || count <= 0)
+                return false;
+
+            int current = GetCount(itemId);
+            if (current < count)
+                return false;
+
+            int remaining = current - count;
+            if (remaining > 0)
+                _counts[itemId] = remaining;
+            else
+                _counts.Remove(itemId);
+            Changed?.Invoke();
+            return true;
         }
 
         /// <summary>세이브 데이터에서 복원 (중복 id는 합산).</summary>

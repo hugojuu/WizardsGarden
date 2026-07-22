@@ -21,6 +21,7 @@ MonoBehaviour:
     wind: 0
     star: 0
   baseValue: 1
+  displayEmoji: "\U0001F4A7"
   tier: 1
   growthSeconds: 3
-  displayEmoji: "\U0001F4A7"
+  unlockCost: 0

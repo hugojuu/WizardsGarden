@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace WizardGarden.Core
 {
     /// <summary>
-    /// JSON 세이브 스키마 (S02, v2는 S03). 버전 필드로 마이그레이션 대비.
+    /// JSON 세이브 스키마 (S02, v2는 S03, v3는 S04). 버전 필드로 마이그레이션 대비.
     /// 필드 기본값 version = 0: 버전 필드가 없는(손상된) JSON을 구버전으로 식별하기 위함 —
     /// 새 세이브는 반드시 CreateNew()로 생성할 것.
     /// </summary>
@@ -12,7 +12,7 @@ namespace WizardGarden.Core
     public class SaveData
     {
         /// <summary>현재 스키마 버전. 스키마 변경 시 +1 하고 SaveMigrator에 단계 추가.</summary>
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         /// <summary>밭 슬롯 저장 항목 (v2/S03). 빈 슬롯은 plantId = "".</summary>
         [Serializable]
@@ -47,6 +47,35 @@ namespace WizardGarden.Core
         /// <summary>수확물 인벤토리 (v2/S03).</summary>
         public List<InventoryEntry> inventoryItems = new List<InventoryEntry>();
 
+        /// <summary>상점 진열대 항목 (v3/S04). 빈 칸은 itemId = "".</summary>
+        [Serializable]
+        public class DisplaySlotEntry
+        {
+            public string itemId = "";
+            public int count;
+        }
+
+        /// <summary>보유 골드 (v3/S04).</summary>
+        public long gold;
+
+        /// <summary>골드 해금된 아이템 id 목록 (v3/S04).</summary>
+        public List<string> unlockedIds = new List<string>();
+
+        /// <summary>상점 진열대 상태 (v3/S04).</summary>
+        public List<DisplaySlotEntry> shopDisplaySlots = new List<DisplaySlotEntry>();
+
+        /// <summary>마지막 손님 방문 시점 (자원초, v3/S04).</summary>
+        public double shopLastCustomerAtResourceSeconds;
+
+        /// <summary>작업대 가공 중 출력 아이템 id (v3/S04, 대기 중이면 "").</summary>
+        public string workshopOutputId = "";
+
+        /// <summary>작업대 완료 시 산출 수량 (v3/S04).</summary>
+        public int workshopOutputCount;
+
+        /// <summary>작업대 가공 시작 시점 (자원초, v3/S04).</summary>
+        public double workshopStartedAtResourceSeconds;
+
         /// <summary>현재 버전으로 초기화된 새 세이브 생성.</summary>
         public static SaveData CreateNew()
         {
@@ -72,6 +101,18 @@ namespace WizardGarden.Core
                         data.gardenSlots ??= new List<SaveData.GardenSlotEntry>();
                         data.inventoryItems ??= new List<SaveData.InventoryEntry>();
                         data.version = 2;
+                        break;
+                    case 2:
+                        // v2 → v3 (S04): 골드·해금·상점·작업대 필드 추가 — 구세이브는 골드 0, 빈 상태.
+                        // 손님 타이머는 저장된 자원초로 맞춰 로드 직후 손님 몰림 방지.
+                        data.gold = 0;
+                        data.unlockedIds ??= new List<string>();
+                        data.shopDisplaySlots ??= new List<SaveData.DisplaySlotEntry>();
+                        data.shopLastCustomerAtResourceSeconds = data.resourceSeconds;
+                        data.workshopOutputId = "";
+                        data.workshopOutputCount = 0;
+                        data.workshopStartedAtResourceSeconds = 0.0;
+                        data.version = 3;
                         break;
                     default:
                         return false;

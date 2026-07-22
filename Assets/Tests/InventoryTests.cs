@@ -52,6 +52,60 @@ namespace WizardGarden.Tests
         }
 
         [Test]
+        public void TryRemove_ReducesCount_AndDropsItemAtZero()
+        {
+            var inventory = new Inventory();
+            inventory.Add("plant_ember_grass", 5);
+
+            Assert.IsTrue(inventory.TryRemove("plant_ember_grass", 2));
+            Assert.AreEqual(3, inventory.GetCount("plant_ember_grass"));
+
+            Assert.IsTrue(inventory.TryRemove("plant_ember_grass", 3));
+            Assert.AreEqual(0, inventory.GetCount("plant_ember_grass"));
+            Assert.AreEqual(0, inventory.UniqueItemCount); // 0이 되면 항목 자체 삭제
+        }
+
+        [Test]
+        public void TryRemove_InsufficientCount_FailsWithoutChange()
+        {
+            var inventory = new Inventory();
+            inventory.Add("plant_ember_grass", 2);
+            int changedCount = 0;
+            inventory.Changed += () => changedCount++;
+
+            Assert.IsFalse(inventory.TryRemove("plant_ember_grass", 3));
+            Assert.IsFalse(inventory.TryRemove("plant_dew_moss"));
+            Assert.AreEqual(2, inventory.GetCount("plant_ember_grass"));
+            Assert.AreEqual(0, changedCount);
+        }
+
+        [Test]
+        public void TryRemove_InvalidArgs_Fails()
+        {
+            var inventory = new Inventory();
+            inventory.Add("plant_ember_grass", 2);
+
+            Assert.IsFalse(inventory.TryRemove(null));
+            Assert.IsFalse(inventory.TryRemove(""));
+            Assert.IsFalse(inventory.TryRemove("plant_ember_grass", 0));
+            Assert.IsFalse(inventory.TryRemove("plant_ember_grass", -1));
+            Assert.AreEqual(2, inventory.GetCount("plant_ember_grass"));
+        }
+
+        [Test]
+        public void TryRemove_RaisesChangedEvent()
+        {
+            var inventory = new Inventory();
+            inventory.Add("plant_ember_grass", 2);
+            int changedCount = 0;
+            inventory.Changed += () => changedCount++;
+
+            inventory.TryRemove("plant_ember_grass");
+
+            Assert.AreEqual(1, changedCount);
+        }
+
+        [Test]
         public void Entries_AreSortedById()
         {
             var inventory = new Inventory();

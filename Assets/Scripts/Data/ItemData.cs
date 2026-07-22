@@ -22,5 +22,9 @@ namespace WizardGarden.Data
 
         [Tooltip("기본 가치/판매가 (골드, 비매품은 0)")]
         public int baseValue;
+
+        [Header("표시 (플레이스홀더)")]
+        [Tooltip("플레이스홀더 표시용 이모지 — UI는 이 필드를 참조해서만 표시 (정식 아트로 후반 교체)")]
+        public string displayEmoji = "❔";
     }
 }

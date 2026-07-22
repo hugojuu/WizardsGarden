@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e36bbae04cc85646a991720ab2ebc42, type: 3}
+  m_Name: Material_DriedFlameLeaf
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.MaterialData
+  id: material_dried_flame_leaf
+  displayName: "\uB9C8\uB978 \uD654\uC5FC\uC78E"
+  composition:
+    fire: 1
+    water: 0
+    earth: 0
+    wind: 0
+    star: 0
+  baseValue: 5
+  displayEmoji: "\U0001F342"
+  processingStage: 1
+  sourceItem: {fileID: 11400000, guid: b7f4c82bf2be68146899bae5ed9f9733, type: 2}
+  sourceCount: 1
+  processingSeconds: 8
