@@ -13,6 +13,12 @@ namespace WizardGarden.Core
 
         public GameClock Clock { get; }
 
+        /// <summary>밭 슬롯 상태 (S03).</summary>
+        public Garden Garden { get; }
+
+        /// <summary>수확물 인벤토리 (S03).</summary>
+        public Inventory Inventory { get; }
+
         /// <summary>Begin에서 세이브를 복원했는가 (false = 새 게임).</summary>
         public bool LoadedFromSave { get; private set; }
 
@@ -24,6 +30,8 @@ namespace WizardGarden.Core
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _utcClock = utcClock ?? throw new ArgumentNullException(nameof(utcClock));
             Clock = new GameClock();
+            Garden = new Garden();
+            Inventory = new Inventory();
         }
 
         /// <summary>세이브가 있으면 복원 + 오프라인 경과 계산, 없으면 새 게임 상태.</summary>
@@ -32,6 +40,8 @@ namespace WizardGarden.Core
             if (_repository.TryLoad(out SaveData data))
             {
                 Clock.RestoreFrom(data);
+                Garden.RestoreFrom(data);
+                Inventory.RestoreFrom(data);
                 PendingOfflineSeconds = ComputeOfflineSeconds(data.lastSavedUtcTicks, _utcClock.UtcNow);
                 LoadedFromSave = true;
             }
@@ -47,8 +57,26 @@ namespace WizardGarden.Core
         {
             SaveData data = SaveData.CreateNew();
             Clock.WriteTo(data);
+            Garden.WriteTo(data);
+            Inventory.WriteTo(data);
             data.lastSavedUtcTicks = _utcClock.UtcNow.Ticks;
             _repository.Save(data);
+        }
+
+        /// <summary>현재 자원 시간 기준으로 슬롯에 심기.</summary>
+        public bool TryPlant(int slotIndex, string plantId)
+        {
+            return Garden.TryPlant(slotIndex, plantId, Clock.ResourceSeconds);
+        }
+
+        /// <summary>현재 자원 시간 기준으로 수확 판정 — 성공 시 인벤토리에 적재.</summary>
+        public bool TryHarvestToInventory(int slotIndex, double growthSeconds)
+        {
+            if (!Garden.TryHarvest(slotIndex, Clock.ResourceSeconds, growthSeconds, out string harvestedPlantId))
+                return false;
+
+            Inventory.Add(harvestedPlantId);
+            return true;
         }
 
         /// <summary>S08 오프라인 정산 완료 후 호출.</summary>

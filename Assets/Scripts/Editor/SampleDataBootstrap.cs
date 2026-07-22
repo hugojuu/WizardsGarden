@@ -23,13 +23,13 @@ namespace WizardGarden.EditorTools
             EnsureFolder(PotionFolder);
 
             CreatePlant("Plant_EmberGrass", "plant_ember_grass", "작은 불꽃풀",
-                new ElementComposition(1, 0, 0, 0));
+                new ElementComposition(1, 0, 0, 0), "🔥");
             CreatePlant("Plant_DewMoss", "plant_dew_moss", "이슬 이끼",
-                new ElementComposition(0, 1, 0, 0));
+                new ElementComposition(0, 1, 0, 0), "💧");
             CreatePlant("Plant_WildGrass", "plant_wild_grass", "들풀",
-                new ElementComposition(0, 0, 1, 0));
+                new ElementComposition(0, 0, 1, 0), "🌍");
             CreatePlant("Plant_DandelionPuff", "plant_dandelion_puff", "민들레 홀씨",
-                new ElementComposition(0, 0, 0, 1));
+                new ElementComposition(0, 0, 0, 1), "💨");
 
             CreatePotion("Potion_MinorFlame", "potion_minor_flame", "작은 화염 포션",
                 new ElementComposition(3, 0, 0, 0), 50, PotionCategory.Attack);
@@ -39,7 +39,8 @@ namespace WizardGarden.EditorTools
             Debug.Log("[S01] 샘플 데이터 생성 완료 — 티어1 식물 4종 (Assets/Data/Plants) + 포션 1종 (Assets/Data/Potions)");
         }
 
-        private static void CreatePlant(string assetName, string id, string displayName, ElementComposition composition)
+        private static void CreatePlant(string assetName, string id, string displayName,
+            ElementComposition composition, string displayEmoji)
         {
             string path = $"{PlantFolder}/{assetName}.asset";
             var plant = LoadOrCreate<PlantData>(path);
@@ -49,6 +50,7 @@ namespace WizardGarden.EditorTools
             plant.tier = 1;
             plant.growthSeconds = 3f;
             plant.baseValue = 1;
+            plant.displayEmoji = displayEmoji;
             EditorUtility.SetDirty(plant);
         }
 

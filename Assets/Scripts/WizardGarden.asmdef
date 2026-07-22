@@ -1,7 +1,9 @@
 {
     "name": "WizardGarden",
     "rootNamespace": "WizardGarden",
-    "references": [],
+    "references": [
+        "Unity.InputSystem"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

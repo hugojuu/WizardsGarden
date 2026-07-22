@@ -14,5 +14,9 @@ namespace WizardGarden.Data
         [Tooltip("성장 시간 (초) — 티어1 3초 / 티어2 15초 / 티어3 60초 / 티어4 300초 / 티어5 1500초")]
         [Min(0f)]
         public float growthSeconds = 3f;
+
+        [Header("표시 (플레이스홀더)")]
+        [Tooltip("플레이스홀더 표시용 이모지 — UI는 이 필드를 참조해서만 표시 (정식 아트로 후반 교체)")]
+        public string displayEmoji = "🌱";
     }
 }

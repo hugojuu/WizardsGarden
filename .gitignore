@@ -31,6 +31,9 @@
 .DS_Store
 Thumbs.db
 
+# 스모크 테스트 스크린샷 (검토용 임시 산출물)
+[Cc]aptures/
+
 # Unity 크래시 리포트
 sysinfo.txt
 *.stackdump
