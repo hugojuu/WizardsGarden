@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e36bbae04cc85646a991720ab2ebc42, type: 3}
+  m_Name: Material_WindEssence
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.MaterialData
+  id: material_wind_essence
+  displayName: "\uBC14\uB78C\uC758 \uC815\uC218"
+  composition:
+    fire: 0
+    water: 0
+    earth: 0
+    wind: 3
+    star: 0
+  baseValue: 150
+  displayEmoji: "\U0001F4A8"
+  processingStage: 2
+  sourceItem: {fileID: 11400000, guid: 2913686d8eb00f348a49a0c7c81713ab, type: 2}
+  sourceCount: 2
+  processingSeconds: 30
+  extraInputs: []

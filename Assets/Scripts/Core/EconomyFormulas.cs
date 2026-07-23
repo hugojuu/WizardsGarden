@@ -21,5 +21,16 @@ namespace WizardGarden.Core
             return (int)Math.Round(GardenSlotBaseCost * Math.Pow(CostGrowthRate, purchasedCount),
                 MidpointRounding.AwayFromZero);
         }
+
+        /// <summary>새 티어 해금 비용 = 이전 티어 총수입 × 0.1 (기획서 8장 "티어 도약 = 현재 수입 5~10분 분량"). 0 이하 입력은 0.</summary>
+        public const double TierUnlockIncomeFraction = 0.1;
+
+        public static long TierUnlockCost(long previousTierTotalIncome)
+        {
+            if (previousTierTotalIncome <= 0)
+                return 0;
+            return (long)Math.Round(previousTierTotalIncome * TierUnlockIncomeFraction,
+                MidpointRounding.AwayFromZero);
+        }
     }
 }

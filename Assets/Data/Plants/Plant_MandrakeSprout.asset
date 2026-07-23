@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98dfe3eb926e43f46a3f4f03f962ec43, type: 3}
+  m_Name: Plant_MandrakeSprout
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.PlantData
+  id: plant_mandrake_sprout
+  displayName: "\uB9CC\uB4DC\uB77C\uACE0\uB77C \uC0C8\uC2F9"
+  composition:
+    fire: 0
+    water: 0
+    earth: 2
+    wind: 0
+    star: 0
+  baseValue: 8
+  displayEmoji: "\U0001F331"
+  tier: 2
+  growthSeconds: 15
+  unlockCost: 100

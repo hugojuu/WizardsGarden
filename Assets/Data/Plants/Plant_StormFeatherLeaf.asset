@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98dfe3eb926e43f46a3f4f03f962ec43, type: 3}
+  m_Name: Plant_StormFeatherLeaf
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.PlantData
+  id: plant_storm_feather_leaf
+  displayName: "\uD3ED\uD48D\uC758 \uAE43\uD138\uC78E"
+  composition:
+    fire: 0
+    water: 1
+    earth: 0
+    wind: 2
+    star: 0
+  baseValue: 60
+  displayEmoji: "\U0001FA81"
+  tier: 3
+  growthSeconds: 60
+  unlockCost: 800

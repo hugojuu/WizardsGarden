@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e36bbae04cc85646a991720ab2ebc42, type: 3}
+  m_Name: Material_TimeSand
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.MaterialData
+  id: material_time_sand
+  displayName: "\uC2DC\uAC04\uC758 \uBAA8\uB798"
+  composition:
+    fire: 0
+    water: 0
+    earth: 0
+    wind: 0
+    star: 0
+  baseValue: 2000
+  displayEmoji: "\u23F3"
+  processingStage: 3
+  sourceItem: {fileID: 11400000, guid: 33b15aac1bb2c174495891e193b1fc86, type: 2}
+  sourceCount: 1
+  processingSeconds: 60
+  extraInputs:
+  - item: {fileID: 11400000, guid: 94fc3b7f3e3c5364da19a8d83a92de73, type: 2}
+    count: 1
+  - item: {fileID: 11400000, guid: 750dd657b11b72048b0f048a4589e744, type: 2}
+    count: 1
+  - item: {fileID: 11400000, guid: 99195e0b5d7bb83458796843f435c03d, type: 2}
+    count: 1

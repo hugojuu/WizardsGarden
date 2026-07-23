@@ -1,21 +1,23 @@
 using UnityEditor;
 using UnityEngine;
 using WizardGarden.Core;
+using WizardGarden.Data;
 
 namespace WizardGarden.EditorTools
 {
     /// <summary>
-    /// 시간 배속 치트 (S02). 플레이 모드에서 GameClock 배속·스킵·저장을 조작한다.
-    /// 이후 세션의 경제·계절 검증에 계속 사용.
+    /// 개발 치트 콘솔 (S02 시간 + S07 골드·해금). 플레이 모드에서 GameClock 배속·스킵·저장,
+    /// 골드 지급, 전체 종자 해금을 조작한다. 경제 곡선·계절 검증에 사용.
     /// </summary>
     public class TimeCheatWindow : EditorWindow
     {
-        static readonly double[] SpeedPresets = { 1, 10, 60, 360, 900 };
+        static readonly double[] SpeedPresets = { 1, 10, 60, 360, 900, 3600 };
+        static readonly long[] GoldGrants = { 1000, 100000, 10000000, 1000000000 };
 
-        [MenuItem("WizardGarden/Time Cheat (S02)")]
+        [MenuItem("WizardGarden/Time Cheat (S02+S07)")]
         static void Open()
         {
-            GetWindow<TimeCheatWindow>("시간 치트");
+            GetWindow<TimeCheatWindow>("개발 치트");
         }
 
         void OnGUI()
@@ -72,6 +74,22 @@ namespace WizardGarden.EditorTools
             }
 
             EditorGUILayout.Space();
+            EditorGUILayout.LabelField($"골드·해금 (S07) — 보유 {session.Wallet.Gold:N0}G", EditorStyles.boldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                foreach (long grant in GoldGrants)
+                {
+                    if (GUILayout.Button($"+{Abbreviate(grant)}G"))
+                    {
+                        session.Wallet.Add(grant);
+                        Debug.Log($"[치트] 골드 +{grant:N0} (보유 {session.Wallet.Gold:N0})");
+                    }
+                }
+            }
+            if (GUILayout.Button("전체 종자 해금 (골드 무소모)"))
+                UnlockAllSeeds(session);
+
+            EditorGUILayout.Space();
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("지금 저장"))
@@ -80,6 +98,32 @@ namespace WizardGarden.EditorTools
                     Debug.Log("[TimeCheat] 저장 완료");
                 }
             }
+        }
+
+        // 전체 종자 해금 — 각 식물 해금가를 지급했다가 즉시 해금해 순골드 변화 0 (치트).
+        static void UnlockAllSeeds(GameSession session)
+        {
+            int unlocked = 0;
+            foreach (string guid in AssetDatabase.FindAssets("t:PlantData"))
+            {
+                var plant = AssetDatabase.LoadAssetAtPath<PlantData>(AssetDatabase.GUIDToAssetPath(guid));
+                if (plant == null || string.IsNullOrEmpty(plant.id) || plant.unlockCost <= 0)
+                    continue;
+                if (session.Unlocks.IsUnlocked(plant.id))
+                    continue;
+                session.Wallet.Add(plant.unlockCost);
+                if (session.TryPurchaseUnlock(plant.id, plant.unlockCost))
+                    unlocked++;
+            }
+            Debug.Log($"[치트] 전체 종자 해금 — 신규 {unlocked}종 (골드 순변화 0)");
+        }
+
+        static string Abbreviate(long value)
+        {
+            if (value >= 1_000_000_000) return $"{value / 1_000_000_000}B";
+            if (value >= 1_000_000) return $"{value / 1_000_000}M";
+            if (value >= 1_000) return $"{value / 1_000}K";
+            return value.ToString();
         }
 
         void Update()

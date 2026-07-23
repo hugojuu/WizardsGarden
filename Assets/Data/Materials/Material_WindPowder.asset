@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e36bbae04cc85646a991720ab2ebc42, type: 3}
+  m_Name: Material_WindPowder
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.MaterialData
+  id: material_wind_powder
+  displayName: "\uD48D\uB839 \uAC00\uB8E8"
+  composition:
+    fire: 0
+    water: 0
+    earth: 0
+    wind: 2
+    star: 0
+  baseValue: 40
+  displayEmoji: "\u2B1C"
+  processingStage: 1
+  sourceItem: {fileID: 11400000, guid: a7aeb5bdf4698804ebf03005209cd8b8, type: 2}
+  sourceCount: 1
+  processingSeconds: 12
+  extraInputs: []

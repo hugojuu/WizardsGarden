@@ -26,3 +26,4 @@ MonoBehaviour:
   sourceItem: {fileID: 11400000, guid: ad9555303cec8524ba3d5476e609eb2b, type: 2}
   sourceCount: 1
   processingSeconds: 8
+  extraInputs: []

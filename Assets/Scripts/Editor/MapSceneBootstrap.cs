@@ -16,24 +16,52 @@ namespace WizardGarden.EditorTools
     {
         private const string ScenePath = "Assets/Scenes/SampleScene.unity";
 
+        // S07 — 식물 20종 전량 (티어1 4종은 처음부터, 나머지는 해금)
         private static readonly string[] SeedAssetPaths =
         {
             "Assets/Data/Plants/Plant_EmberGrass.asset",
+            "Assets/Data/Plants/Plant_FlamePoppy.asset",
+            "Assets/Data/Plants/Plant_DragonBreathHerb.asset",
+            "Assets/Data/Plants/Plant_PhoenixFeather.asset",
+            "Assets/Data/Plants/Plant_SunCore.asset",
             "Assets/Data/Plants/Plant_DewMoss.asset",
+            "Assets/Data/Plants/Plant_BlueLily.asset",
+            "Assets/Data/Plants/Plant_MermaidHair.asset",
+            "Assets/Data/Plants/Plant_PearlGrass.asset",
+            "Assets/Data/Plants/Plant_MoonTear.asset",
             "Assets/Data/Plants/Plant_WildGrass.asset",
+            "Assets/Data/Plants/Plant_MandrakeSprout.asset",
+            "Assets/Data/Plants/Plant_GoldenRoot.asset",
+            "Assets/Data/Plants/Plant_AncientOakLeaf.asset",
+            "Assets/Data/Plants/Plant_WorldTreeSapling.asset",
             "Assets/Data/Plants/Plant_DandelionPuff.asset",
-            "Assets/Data/Plants/Plant_FlamePoppy.asset"
+            "Assets/Data/Plants/Plant_WindSongGrass.asset",
+            "Assets/Data/Plants/Plant_StormFeatherLeaf.asset",
+            "Assets/Data/Plants/Plant_ThundercloudVine.asset",
+            "Assets/Data/Plants/Plant_SkySpiritGrass.asset"
         };
 
+        // S07 — 가공 재료 15종 전량 (1차 8 · 2차 4 · 3차 3). 작업대 가공 목록 + 조합 재료
         private static readonly string[] RecipeAssetPaths =
         {
             "Assets/Data/Materials/Material_DriedFlameLeaf.asset",
             "Assets/Data/Materials/Material_DriedDewLeaf.asset",
             "Assets/Data/Materials/Material_DriedEarthGrass.asset",
-            "Assets/Data/Materials/Material_DriedWindLeaf.asset"
+            "Assets/Data/Materials/Material_DriedWindLeaf.asset",
+            "Assets/Data/Materials/Material_FlamePowder.asset",
+            "Assets/Data/Materials/Material_WaterPowder.asset",
+            "Assets/Data/Materials/Material_EarthPowder.asset",
+            "Assets/Data/Materials/Material_WindPowder.asset",
+            "Assets/Data/Materials/Material_FireEssence.asset",
+            "Assets/Data/Materials/Material_WaterEssence.asset",
+            "Assets/Data/Materials/Material_EarthEssence.asset",
+            "Assets/Data/Materials/Material_WindEssence.asset",
+            "Assets/Data/Materials/Material_StarlightPowder.asset",
+            "Assets/Data/Materials/Material_TimeSand.asset",
+            "Assets/Data/Materials/Material_RainbowCrystal.asset"
         };
 
-        // S06 발견 가능 포션 (마른 잎으로 도달 가능한 단일 4 + 2원소 6)
+        // S07 — 포션 30종 전량 (도감·조합 매칭·판매·완성도 분모)
         private static readonly string[] PotionAssetPaths =
         {
             "Assets/Data/Potions/Potion_MinorFlame.asset",
@@ -45,10 +73,30 @@ namespace WizardGarden.EditorTools
             "Assets/Data/Potions/Potion_Storm.asset",
             "Assets/Data/Potions/Potion_Herb.asset",
             "Assets/Data/Potions/Potion_Raincloud.asset",
-            "Assets/Data/Potions/Potion_Sandstorm.asset"
+            "Assets/Data/Potions/Potion_Sandstorm.asset",
+            "Assets/Data/Potions/Potion_Polymorph.asset",
+            "Assets/Data/Potions/Potion_Flight.asset",
+            "Assets/Data/Potions/Potion_Invisibility.asset",
+            "Assets/Data/Potions/Potion_Spirit.asset",
+            "Assets/Data/Potions/Potion_SagesElixir.asset",
+            "Assets/Data/Potions/Potion_Geyser.asset",
+            "Assets/Data/Potions/Potion_Downpour.asset",
+            "Assets/Data/Potions/Potion_Obsidian.asset",
+            "Assets/Data/Potions/Potion_Lightning.asset",
+            "Assets/Data/Potions/Potion_DragonBlood.asset",
+            "Assets/Data/Potions/Potion_Bloom.asset",
+            "Assets/Data/Potions/Potion_DragonBreath.asset",
+            "Assets/Data/Potions/Potion_MermaidSong.asset",
+            "Assets/Data/Potions/Potion_WorldTreeSap.asset",
+            "Assets/Data/Potions/Potion_Moonlight.asset",
+            "Assets/Data/Potions/Potion_ElixirOfLife.asset",
+            "Assets/Data/Potions/Potion_BlackSun.asset",
+            "Assets/Data/Potions/Potion_HeartsBrew.asset",
+            "Assets/Data/Potions/Potion_Guardian.asset",
+            "Assets/Data/Potions/Potion_Luck.asset"
         };
 
-        // S06 실패 부산물 3종 (실험 일지)
+        // 실패 부산물 3종 (실험 일지)
         private static readonly string[] ByproductAssetPaths =
         {
             "Assets/Data/Potions/Potion_Murky.asset",

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b918e01444181bd41852078f472a6026, type: 3}
+  m_Name: Potion_WorldTreeSap
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.PotionData
+  id: potion_world_tree_sap
+  displayName: "\uC138\uACC4\uC218\uC758 \uC218\uC561"
+  composition:
+    fire: 0
+    water: 2
+    earth: 5
+    wind: 0
+    star: 0
+  baseValue: 12000
+  displayEmoji: "\U0001F9EA"
+  category: 4
+  requiredIngredients:
+  - item: {fileID: 11400000, guid: f0433fc412bd4b44587ab78793c39d47, type: 2}
+    count: 1
+  conditionTags: []
+  equipEffectId: 

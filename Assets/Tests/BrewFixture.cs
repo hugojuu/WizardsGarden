@@ -11,12 +11,12 @@ namespace WizardGarden.Tests
     /// </summary>
     public static class BrewFixture
     {
-        // --- 지정 재료 잠정 id ---
-        public const string StarlightPowder = "material_starlight_powder";      // 별빛 분말
-        public const string DragonBreathHerb = "plant_dragon_breath_herb";      // 용의 입김초
-        public const string MermaidHair = "material_mermaid_hair";              // 인어의 머리카락
-        public const string WorldTreeSapling = "plant_world_tree_sapling";      // 세계수 묘목
-        public const string RainbowCrystal = "material_rainbow_crystal";        // 무지개 수정 촉매
+        // --- 지정 재료 id (S07 확정 — SO 테이블과 일치) ---
+        public const string StarlightPowder = "material_starlight_powder";      // 별빛 분말 (3차 재료)
+        public const string DragonBreathHerb = "plant_dragon_breath_herb";      // 용의 입김초 (티어3 불 식물)
+        public const string MermaidHair = "plant_mermaid_hair";                 // 인어의 머리카락 (티어3 물 식물 — 기획서 4장)
+        public const string WorldTreeSapling = "plant_world_tree_sapling";      // 세계수 묘목 (티어5 대지 식물)
+        public const string RainbowCrystal = "material_rainbow_crystal";        // 무지개 수정 촉매 (3차 재료)
 
         static ElementComposition C(int fire, int water, int earth, int wind, int star = 0)
             => new ElementComposition(fire, water, earth, wind, star);

@@ -670,21 +670,13 @@ namespace WizardGarden
             return true;
         }
 
-        // 조성 + 지정 재료를 실제 인벤토리 재료 id로 역산(원소당 단위 재료 사용). 매핑 불가한 원소가 있으면 false.
+        // 조성 + 지정 재료를 실제 인벤토리 재료 id로 역산. 지정 재료의 조성만큼 목표에서 먼저 차감한 뒤
+        // 남은 조성을 원소당 단위 재료로 채운다(이중 계산 방지 — 예: 용의 숨결 🔥4💨2 = 용의 입김초 🔥2💨1 ×2).
+        // 매핑 불가한 원소가 남으면 false.
         bool TryBuildRecipeSelection(PotionData potion, out Dictionary<string, int> need)
         {
             need = new Dictionary<string, int>(System.StringComparer.Ordinal);
-            Core.ElementComposition c = potion.composition;
-            for (int e = 0; e < Core.ElementComposition.SlotCount; e++)
-            {
-                int amount = c[(Core.Element)e];
-                if (amount <= 0)
-                    continue;
-                if (!_elementUnitIngredient.TryGetValue((Core.Element)e, out string unitId))
-                    return false;   // 이 원소의 단위 재료가 없음 (S06 범위 밖)
-                need.TryGetValue(unitId, out int have);
-                need[unitId] = have + amount;
-            }
+            Core.ElementComposition remaining = potion.composition;
 
             if (potion.requiredIngredients != null)
             {
@@ -694,9 +686,28 @@ namespace WizardGarden
                         return false;
                     need.TryGetValue(req.item.id, out int have);
                     need[req.item.id] = have + req.count;
+                    for (int k = 0; k < req.count; k++)
+                        remaining = SubtractComposition(remaining, req.item.composition);
                 }
             }
+
+            for (int e = 0; e < Core.ElementComposition.SlotCount; e++)
+            {
+                int amount = remaining[(Core.Element)e];
+                if (amount <= 0)
+                    continue;   // 0 이하 = 지정 재료가 이미 이 원소를 채움
+                if (!_elementUnitIngredient.TryGetValue((Core.Element)e, out string unitId))
+                    return false;   // 이 원소의 단위 재료가 없음
+                need.TryGetValue(unitId, out int have);
+                need[unitId] = have + amount;
+            }
             return need.Count > 0;
+        }
+
+        static Core.ElementComposition SubtractComposition(Core.ElementComposition a, Core.ElementComposition b)
+        {
+            return new Core.ElementComposition(
+                a.fire - b.fire, a.water - b.water, a.earth - b.earth, a.wind - b.wind, a.star - b.star);
         }
 
         // ---- 팝업 (전부 GameSession API 호출로만 동작) ----
@@ -758,20 +769,55 @@ namespace WizardGarden
                 if (material == null)
                     continue;
                 MaterialData captured = material;
-                string sourceLabel = material.sourceItem != null
-                    ? $"{material.sourceItem.displayEmoji} {material.sourceItem.displayName} ×{material.sourceCount}"
-                    : "(원료 없음)";
-                bool hasSource = material.sourceItem != null
-                    && _session.Inventory.GetCount(material.sourceItem.id) >= material.sourceCount;
+                string sourceLabel = RecipeSourceLabel(material);
+                bool hasSource = HasAllInputs(material);
 
                 _entriesBuffer.Add(new MapPopup.Entry(
-                    $"{material.displayEmoji} {material.displayName} ← {sourceLabel} ({material.processingSeconds:0}초)",
+                    $"[{material.processingStage}차] {material.displayEmoji} {material.displayName} ← {sourceLabel} ({material.processingSeconds:0}초)",
                     PlaceholderPalette.ForComposition(material.composition),
                     hasSource,
                     () => TryStartRecipe(captured)));
             }
 
-            _popup.Open("가공 선택 (1차 — 가치 ×5)", _entriesBuffer);
+            _popup.Open("가공 선택 (1~3차 — 마른 잎/가루 → 정수 → 별빛·모래·수정)", _entriesBuffer);
+        }
+
+        // 가공 원료 라벨 (주 원료 + 추가 원료). 다중 입력이면 " + " 로 이어 붙임.
+        string RecipeSourceLabel(MaterialData material)
+        {
+            if (material.sourceItem == null)
+                return "(원료 없음)";
+            var builder = new StringBuilder();
+            builder.Append($"{material.sourceItem.displayEmoji} {material.sourceItem.displayName} ×{material.sourceCount}");
+            if (material.extraInputs != null)
+            {
+                foreach (IngredientRequirement extra in material.extraInputs)
+                {
+                    if (extra == null || extra.item == null)
+                        continue;
+                    builder.Append($" + {extra.item.displayEmoji} {extra.item.displayName} ×{extra.count}");
+                }
+            }
+            return builder.ToString();
+        }
+
+        // 주 원료 + 추가 원료를 전부 보유하고 있는가 (다중 입력 가공 시작 가능 여부).
+        bool HasAllInputs(MaterialData material)
+        {
+            if (material.sourceItem == null
+                || _session.Inventory.GetCount(material.sourceItem.id) < material.sourceCount)
+                return false;
+            if (material.extraInputs != null)
+            {
+                foreach (IngredientRequirement extra in material.extraInputs)
+                {
+                    if (extra == null || extra.item == null || string.IsNullOrEmpty(extra.item.id))
+                        return false;
+                    if (_session.Inventory.GetCount(extra.item.id) < extra.count)
+                        return false;
+                }
+            }
+            return true;
         }
 
         void OpenDisplayPopup(int shopSlotIndex)
@@ -802,8 +848,23 @@ namespace WizardGarden
         {
             if (material == null || material.sourceItem == null)
                 return false;
-            return _session.Workshop.TryStart(material.id, 1, material.sourceItem.id, material.sourceCount,
+            Workshop workshop = _session.Workshop;
+            if (!workshop.IsIdle || !HasAllInputs(material))
+                return false;
+
+            // 추가 원료(2·3차 다중 입력)를 먼저 소비 — 주 원료는 Workshop.TryStart이 소비.
+            bool hasExtras = material.extraInputs != null && material.extraInputs.Count > 0;
+            if (hasExtras)
+                foreach (IngredientRequirement extra in material.extraInputs)
+                    _session.Inventory.TryRemove(extra.item.id, extra.count);
+
+            bool started = workshop.TryStart(material.id, 1, material.sourceItem.id, material.sourceCount,
                 _session.Inventory, _session.Clock.ResourceSeconds);
+
+            if (!started && hasExtras)   // 롤백 — 주 원료 소비 실패 시 추가 원료 복구
+                foreach (IngredientRequirement extra in material.extraInputs)
+                    _session.Inventory.Add(extra.item.id, extra.count);
+            return started;
         }
 
         bool IsSeedLocked(PlantData plant)

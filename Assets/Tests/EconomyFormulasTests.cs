@@ -29,5 +29,20 @@ namespace WizardGarden.Tests
         {
             Assert.AreEqual(EconomyFormulas.GardenSlotBaseCost, EconomyFormulas.GardenSlotCost(-3));
         }
+
+        [Test]
+        public void TierUnlockCost_IsTenPercentOfPreviousIncome()
+        {
+            Assert.AreEqual(500L, EconomyFormulas.TierUnlockCost(5000));       // 5000 × 0.1
+            Assert.AreEqual(5000L, EconomyFormulas.TierUnlockCost(50000));     // 50000 × 0.1
+            Assert.AreEqual(20000000L, EconomyFormulas.TierUnlockCost(200000000)); // 2억 × 0.1
+        }
+
+        [Test]
+        public void TierUnlockCost_NonPositiveIncome_IsZero()
+        {
+            Assert.AreEqual(0L, EconomyFormulas.TierUnlockCost(0));
+            Assert.AreEqual(0L, EconomyFormulas.TierUnlockCost(-100));
+        }
     }
 }

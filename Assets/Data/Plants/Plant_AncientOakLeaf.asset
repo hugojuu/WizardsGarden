@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98dfe3eb926e43f46a3f4f03f962ec43, type: 3}
+  m_Name: Plant_AncientOakLeaf
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.PlantData
+  id: plant_ancient_oak_leaf
+  displayName: "\uACE0\uB300 \uB5A1\uAC08\uC78E"
+  composition:
+    fire: 0
+    water: 0
+    earth: 3
+    wind: 1
+    star: 0
+  baseValue: 450
+  displayEmoji: "\U0001F341"
+  tier: 4
+  growthSeconds: 300
+  unlockCost: 12000

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b918e01444181bd41852078f472a6026, type: 3}
+  m_Name: Potion_Guardian
+  m_EditorClassIdentifier: WizardGarden::WizardGarden.Data.PotionData
+  id: potion_guardian
+  displayName: "\uC218\uD638\uC758 \uD3EC\uC158"
+  composition:
+    fire: 0
+    water: 1
+    earth: 2
+    wind: 0
+    star: 0
+  baseValue: 150
+  displayEmoji: "\U0001F9EA"
+  category: 2
+  requiredIngredients: []
+  conditionTags: []
+  equipEffectId: 
