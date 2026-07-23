@@ -296,6 +296,21 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 29490521d50975b49961894df5914ff1, type: 2}
   - {fileID: 11400000, guid: 0b16e9c7cf0966b46ae0efc0737f6c0c, type: 2}
   - {fileID: 11400000, guid: 4b279e5ad656070418e76fa49a327680, type: 2}
+  potionOptions:
+  - {fileID: 11400000, guid: 23c78eb1fd65f5e4baa71cad79228603, type: 2}
+  - {fileID: 11400000, guid: d3c4652206dd06f4ab62bb4bad3d4afd, type: 2}
+  - {fileID: 11400000, guid: d8bdb3eb524c0204ebb32cbe4a679a6f, type: 2}
+  - {fileID: 11400000, guid: ac46bce522ff1ab468c58b3cf0408d34, type: 2}
+  - {fileID: 11400000, guid: e03e80ce57ae9c04a9432a3daa48fced, type: 2}
+  - {fileID: 11400000, guid: d51934b000f6e2440b024b02d0651e13, type: 2}
+  - {fileID: 11400000, guid: b3e41e7460be1334dae6d8551fa650f6, type: 2}
+  - {fileID: 11400000, guid: c2a29f41ad019654098fb79d72283907, type: 2}
+  - {fileID: 11400000, guid: 56281317661e9ed4b9f8d32448fa15db, type: 2}
+  - {fileID: 11400000, guid: 2cbcfa59b0d12e44fa506435d588a6ad, type: 2}
+  byproductOptions:
+  - {fileID: 11400000, guid: 27154c7a7b577424aa7f6c17693efac6, type: 2}
+  - {fileID: 11400000, guid: 6bdae2042da744846920df9aa5f36fd2, type: 2}
+  - {fileID: 11400000, guid: 264735c7ca48a314ca14d77a8d238fab, type: 2}
 --- !u!4 &580096920
 Transform:
   m_ObjectHideFlags: 0

@@ -27,6 +27,12 @@ namespace WizardGarden
         [Tooltip("작업대 1차 가공 레시피 (마른 잎 4종 — MaterialData SO 참조)")]
         public List<MaterialData> recipeOptions = new List<MaterialData>();
 
+        [Tooltip("발견 가능한 포션 (S06 authoring분 — 조합 매칭·판매·도감 분모)")]
+        public List<PotionData> potionOptions = new List<PotionData>();
+
+        [Tooltip("실패 부산물 3종 (탁한 포션/수상한 침전물/희뿌연 안개병 — 실험 일지)")]
+        public List<PotionData> byproductOptions = new List<PotionData>();
+
         // ---- 맵 구도 상수 (가로형 — 16:9 · ortho size 5 기준, 미니 모드 대비) ----
         const float MapHalfWidth = 8.9f;
         const int GardenColumns = 4;
@@ -37,6 +43,8 @@ namespace WizardGarden
         static readonly Vector2 StandRowCenter = new Vector2(4.6f, -2.2f);
         const float StandSpacing = 1.7f;
         static readonly Vector2 CustomerSpot = new Vector2(1.6f, -3.35f); // 상점 앞 통로 (텍스트 겹침 없는 위치)
+        static readonly Vector2 CauldronCenter = new Vector2(0.1f, 1.6f);  // 상단 중앙 빈 공간 (정원·공방 사이)
+        static readonly Vector2 CodexCenter = new Vector2(0.1f, 3.55f);
 
         GameSession _session;
         Camera _camera;
@@ -44,11 +52,30 @@ namespace WizardGarden
         MapPopup _popup;
         GameObject _debugScreenGo;
 
+        // S06 조합·도감
+        Codex _codex;
+        BrewMatcher _matcher;
+        BrewStation _brewStation;
+        BrewWindow _brewWindow;
+        CodexWindow _codexWindow;
+        CodexWindow.Page _codexPage = CodexWindow.Page.Potions;
+        string _brewResultText = "";
+
         readonly Dictionary<string, ItemData> _itemsById = new Dictionary<string, ItemData>();
         readonly Dictionary<string, PlantData> _plantsById = new Dictionary<string, PlantData>();
         readonly Dictionary<string, MaterialData> _materialsById = new Dictionary<string, MaterialData>();
         readonly List<Shop.SaleRecord> _salesBuffer = new List<Shop.SaleRecord>();
         readonly List<MapPopup.Entry> _entriesBuffer = new List<MapPopup.Entry>();
+
+        // S06 조합 상태·버퍼
+        readonly Dictionary<string, int> _brewSelection = new Dictionary<string, int>(System.StringComparer.Ordinal);
+        readonly HashSet<string> _potionIdSet = new HashSet<string>(System.StringComparer.Ordinal);
+        readonly Dictionary<Core.Element, string> _elementUnitIngredient = new Dictionary<Core.Element, string>();
+        readonly List<PotionData> _potionCatalog = new List<PotionData>();
+        readonly List<PotionData> _byproductCatalog = new List<PotionData>();
+        readonly List<BrewInputItem> _brewInputBuffer = new List<BrewInputItem>();
+        readonly List<BrewWindow.IngredientRow> _brewRowBuffer = new List<BrewWindow.IngredientRow>();
+        readonly List<CodexWindow.Row> _codexRowBuffer = new List<CodexWindow.Row>();
 
         sealed class TileWidget
         {
@@ -95,6 +122,16 @@ namespace WizardGarden
                 _itemsById[material.id] = material;
             }
 
+            RegisterPotionCatalog();
+            BuildElementUnitMap();
+            _matcher = new BrewMatcher(
+                BrewRecipeFactory.ToRecipes(_potionCatalog),
+                BrewRecipeFactory.BuildByproducts(
+                    FindByproduct(BrewRecipeFactory.MurkyId),
+                    FindByproduct(BrewRecipeFactory.SedimentId),
+                    FindByproduct(BrewRecipeFactory.MistId)));
+            _brewStation = new BrewStation(_matcher, _codex);
+
             SetupCamera();
             BuildMap();
 
@@ -103,13 +140,25 @@ namespace WizardGarden
             _popup = new GameObject("MapPopup").AddComponent<MapPopup>();
             _popup.transform.SetParent(transform, false);
 
+            _brewWindow = new GameObject("BrewWindow").AddComponent<BrewWindow>();
+            _brewWindow.transform.SetParent(transform, false);
+            _brewWindow.OnBrew = () => BrewExecute();
+            _brewWindow.OnClear = BrewClear;
+
+            _codexWindow = new GameObject("CodexWindow").AddComponent<CodexWindow>();
+            _codexWindow.transform.SetParent(transform, false);
+            _codexWindow.OnSelectPotions = () => SetCodexPage(CodexWindow.Page.Potions);
+            _codexWindow.OnSelectJournal = () => SetCodexPage(CodexWindow.Page.Journal);
+
             GameScreen debugScreen = Object.FindFirstObjectByType<GameScreen>(FindObjectsInactive.Include);
             _debugScreenGo = debugScreen != null ? debugScreen.gameObject : null;
 
             _session.Inventory.Changed += RefreshInventoryHud;
             _session.Wallet.Changed += RefreshGoldHud;
+            _codex.Changed += RefreshCodexHud;
             RefreshInventoryHud();
             RefreshGoldHud();
+            RefreshCodexHud();
         }
 
         void OnDestroy()
@@ -118,6 +167,70 @@ namespace WizardGarden
                 return;
             _session.Inventory.Changed -= RefreshInventoryHud;
             _session.Wallet.Changed -= RefreshGoldHud;
+            if (_codex != null)
+                _codex.Changed -= RefreshCodexHud;
+        }
+
+        void RegisterPotionCatalog()
+        {
+            _codex = _session.Codex;
+            var byproductIds = new HashSet<string>(System.StringComparer.Ordinal)
+            {
+                BrewRecipeFactory.MurkyId, BrewRecipeFactory.SedimentId, BrewRecipeFactory.MistId
+            };
+
+            foreach (PotionData potion in potionOptions)
+            {
+                if (potion == null || string.IsNullOrEmpty(potion.id) || byproductIds.Contains(potion.id))
+                    continue;
+                _potionCatalog.Add(potion);
+                _itemsById[potion.id] = potion;
+                _potionIdSet.Add(potion.id);
+                _codex.RegisterPotion(potion.id);
+            }
+
+            foreach (PotionData byproduct in byproductOptions)
+            {
+                if (byproduct == null || string.IsNullOrEmpty(byproduct.id))
+                    continue;
+                _byproductCatalog.Add(byproduct);
+                _itemsById[byproduct.id] = byproduct;
+                _potionIdSet.Add(byproduct.id);
+                _codex.RegisterByproduct(byproduct.id);
+            }
+        }
+
+        // 원소 → 단위(합 1) 재료 id — 재제조 시 조성으로부터 투입 재료를 역산한다.
+        // 가공 재료(마른 잎) 우선, 없으면 단일 원소 종자로 대체.
+        void BuildElementUnitMap()
+        {
+            foreach (MaterialData material in recipeOptions)
+                TryMapUnit(material);
+            foreach (PlantData plant in seedOptions)
+                TryMapUnit(plant);
+        }
+
+        void TryMapUnit(ItemData item)
+        {
+            if (item == null || string.IsNullOrEmpty(item.id))
+                return;
+            Core.ElementComposition c = item.composition;
+            if (c.Total != 1)
+                return;
+            for (int e = 0; e < Core.ElementComposition.SlotCount; e++)
+            {
+                var element = (Core.Element)e;
+                if (c[element] == 1 && !_elementUnitIngredient.ContainsKey(element))
+                    _elementUnitIngredient[element] = item.id;
+            }
+        }
+
+        PotionData FindByproduct(string id)
+        {
+            foreach (PotionData byproduct in _byproductCatalog)
+                if (byproduct != null && byproduct.id == id)
+                    return byproduct;
+            return null;
         }
 
         void Update()
@@ -128,7 +241,7 @@ namespace WizardGarden
             double now = _session.Clock.ResourceSeconds;
 
             _salesBuffer.Clear();
-            _session.Shop.TickCustomers(now, ResolvePrice, _session.Wallet, _salesBuffer);
+            _session.Shop.TickCustomers(now, ResolvePrice, _session.Wallet, _salesBuffer, ApplyCodexGoldBonus);
             for (int i = 0; i < _salesBuffer.Count; i++)
             {
                 Shop.SaleRecord sale = _salesBuffer[i];
@@ -152,7 +265,7 @@ namespace WizardGarden
             if (Keyboard.current != null && Keyboard.current.f12Key.wasPressedThisFrame)
                 ToggleDebugScreen();
 
-            if (IsDebugScreenActive || _popup.IsOpen || _camera == null)
+            if (IsDebugScreenActive || AnyModalOpen || _camera == null)
                 return;
 
             Mouse mouse = Mouse.current;
@@ -167,7 +280,7 @@ namespace WizardGarden
             if (Input.GetKeyDown(KeyCode.F12))
                 ToggleDebugScreen();
 
-            if (IsDebugScreenActive || _popup.IsOpen || _camera == null)
+            if (IsDebugScreenActive || AnyModalOpen || _camera == null)
                 return;
             if (!Input.GetMouseButtonDown(0))
                 return;
@@ -201,10 +314,23 @@ namespace WizardGarden
                 case MapTile.Kind.ShopSlot:
                     OnShopSlotClicked(tile.index);
                     return true;
+                case MapTile.Kind.Cauldron:
+                    OpenBrewWindow();
+                    return true;
+                case MapTile.Kind.Codex:
+                    OpenCodexWindow();
+                    return true;
                 default:
                     return false;
             }
         }
+
+        bool AnyModalOpen =>
+            (_popup != null && _popup.IsOpen)
+            || (_brewWindow != null && _brewWindow.IsOpen)
+            || (_codexWindow != null && _codexWindow.IsOpen);
+
+        long ApplyCodexGoldBonus(long gold) => _codex != null ? _codex.ApplyGoldBonus(gold) : gold;
 
         void OnGardenTileClicked(int index)
         {
@@ -250,6 +376,327 @@ namespace WizardGarden
                 OpenDisplayPopup(index);
             else
                 _session.Shop.TryTakeBack(index, _session.Inventory);
+        }
+
+        // ---- S06 조합 (가마솥 자유 투입 → 발견) ----
+
+        /// <summary>가마솥 조합 창 열기 (스모크 테스트 공용 진입점).</summary>
+        public void OpenBrewWindow()
+        {
+            _brewSelection.Clear();
+            _brewResultText = "창고 재료를 담아 원소 조성을 맞춰보세요.";
+            RefreshBrewWindow(open: true);
+        }
+
+        /// <summary>재료 1개 투입(보유량 한도 내).</summary>
+        public void BrewAdd(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId))
+                return;
+            _brewSelection.TryGetValue(itemId, out int selected);
+            if (selected < _session.Inventory.GetCount(itemId))
+                _brewSelection[itemId] = selected + 1;
+            RefreshBrewWindow();
+        }
+
+        /// <summary>재료 1개 회수.</summary>
+        public void BrewRemove(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId) || !_brewSelection.TryGetValue(itemId, out int selected))
+                return;
+            if (selected <= 1)
+                _brewSelection.Remove(itemId);
+            else
+                _brewSelection[itemId] = selected - 1;
+            RefreshBrewWindow();
+        }
+
+        /// <summary>투입 비우기.</summary>
+        public void BrewClear()
+        {
+            _brewSelection.Clear();
+            _brewResultText = "투입을 비웠어요.";
+            RefreshBrewWindow();
+        }
+
+        /// <summary>제조 실행 — 판정·소비·발견 반영 (스모크 테스트 공용). 성공/부산물 여부 반환.</summary>
+        public BrewAttemptResult BrewExecute()
+        {
+            BuildBrewInputs(_brewSelection);
+            BrewAttemptResult result = _brewStation.Attempt(_brewInputBuffer, BuildBrewContext(), _session.Inventory);
+            ApplyBrewResult(result);
+            RefreshBrewWindow();
+            return result;
+        }
+
+        void ApplyBrewResult(BrewAttemptResult result)
+        {
+            switch (result.Status)
+            {
+                case BrewApplyStatus.Discovered:
+                    _session.AddStarlight(result.StarlightAwarded);
+                    _brewResultText = $"✨ 새로운 포션 발견! {ItemLabel(result.ProducedItemId)}  (+별빛 조각 {result.StarlightAwarded})";
+                    MapCustomerFx.Spawn(new Vector3(CauldronCenter.x, CauldronCenter.y + 0.9f, 0f),
+                        $"✨ 발견! {ItemName(result.ProducedItemId)}");
+                    _brewSelection.Clear();
+                    break;
+                case BrewApplyStatus.AlreadyKnown:
+                    _brewResultText = $"{ItemLabel(result.ProducedItemId)} 제조 완료 (이미 발견된 레시피).";
+                    _brewSelection.Clear();
+                    break;
+                case BrewApplyStatus.Byproduct:
+                    _brewResultText = $"실패… {ItemLabel(result.ProducedItemId)} 획득 — 실험 일지에 기록"
+                        + (result.NewlyDiscovered ? "  ✨ 실험 일지 새 항목!" : "");
+                    _brewSelection.Clear();
+                    break;
+                case BrewApplyStatus.MissingIngredient:
+                    _brewResultText = result.Result.Hint;   // "핵심 재료가 빠진 것 같다" (재료 미소비)
+                    break;
+                case BrewApplyStatus.ConditionNotMet:
+                    _brewResultText = result.Result.Hint;   // 조건 불충족 (재료 미소비)
+                    break;
+                default:
+                    _brewResultText = "투입이 비었거나 재료가 부족해요.";
+                    break;
+            }
+            RefreshCodexHud();
+        }
+
+        void BuildBrewInputs(IReadOnlyDictionary<string, int> selection)
+        {
+            _brewInputBuffer.Clear();
+            foreach (KeyValuePair<string, int> pair in selection)
+            {
+                if (pair.Value <= 0 || !_itemsById.TryGetValue(pair.Key, out ItemData item))
+                    continue;
+                _brewInputBuffer.Add(new BrewInputItem(pair.Key, item.composition, item.baseValue, pair.Value));
+            }
+        }
+
+        Core.IBrewContext BuildBrewContext()
+        {
+            // TimeOfDay만 실값 — 날씨/계절은 S11 전까지 맑음/봄 고정 (S05 인계 방침).
+            return new Core.BrewContext(_session.Clock.CurrentTimeOfDay, Core.Weather.Clear, Core.Season.Spring);
+        }
+
+        void RefreshBrewWindow(bool open = false)
+        {
+            if (_brewWindow == null)
+                return;
+
+            _brewRowBuffer.Clear();
+            foreach (KeyValuePair<string, int> entry in _session.Inventory.Entries)
+            {
+                string id = entry.Key;
+                if (_potionIdSet.Contains(id) || !_itemsById.TryGetValue(id, out ItemData item))
+                    continue;   // 포션·부산물은 재투입 불가 — 재료(식물·가공재료)만
+
+                int owned = entry.Value;
+                _brewSelection.TryGetValue(id, out int selected);
+                string label = $"{item.displayEmoji} {item.displayName}  [{CompositionShort(item.composition)}]  보유 {owned} · 투입 {selected}";
+                string capturedId = id;
+                _brewRowBuffer.Add(new BrewWindow.IngredientRow(
+                    label,
+                    PlaceholderPalette.ForComposition(item.composition),
+                    selected < owned,
+                    selected > 0,
+                    () => BrewAdd(capturedId),
+                    () => BrewRemove(capturedId)));
+            }
+
+            string summary = BrewSummary();
+            bool canBrew = BrewSelectionTotal() > 0;
+            const string title = "가마솥 — 자유 투입 조합";
+            if (open)
+                _brewWindow.Open(title, _brewRowBuffer, summary, _brewResultText, canBrew);
+            else
+                _brewWindow.Render(title, _brewRowBuffer, summary, _brewResultText, canBrew);
+        }
+
+        string BrewSummary()
+        {
+            var total = new Core.ElementComposition();
+            foreach (KeyValuePair<string, int> pair in _brewSelection)
+            {
+                if (pair.Value <= 0 || !_itemsById.TryGetValue(pair.Key, out ItemData item))
+                    continue;
+                for (int i = 0; i < pair.Value; i++)
+                    total += item.composition;
+            }
+            // 이모지 글리프가 없는 환경 대비 한글 병기 (플레이스홀더 규약 — 라벨이 의미 전달).
+            return $"투입 조성 — 🔥불 {total.fire} · 💧물 {total.water} · 🌍대지 {total.earth} · 💨바람 {total.wind}  (합 {total.Total})";
+        }
+
+        int BrewSelectionTotal()
+        {
+            int sum = 0;
+            foreach (KeyValuePair<string, int> pair in _brewSelection)
+                if (pair.Value > 0)
+                    sum += pair.Value;
+            return sum;
+        }
+
+        static string CompositionShort(Core.ElementComposition c)
+        {
+            // 이모지 + 한글 병기 (플레이스홀더 규약 — 글리프 없는 환경에서도 라벨이 의미 전달).
+            var parts = new List<string>(5);
+            if (c.fire > 0) parts.Add($"🔥불{c.fire}");
+            if (c.water > 0) parts.Add($"💧물{c.water}");
+            if (c.earth > 0) parts.Add($"🌍대지{c.earth}");
+            if (c.wind > 0) parts.Add($"💨바람{c.wind}");
+            if (c.star > 0) parts.Add($"⭐별{c.star}");
+            return parts.Count > 0 ? string.Join(" ", parts) : "—";
+        }
+
+        string ItemName(string itemId)
+        {
+            return _itemsById.TryGetValue(itemId, out ItemData item) ? item.displayName : itemId;
+        }
+
+        // ---- S06 도감 ----
+
+        /// <summary>도감 창 열기 (스모크 테스트 공용 진입점).</summary>
+        public void OpenCodexWindow()
+        {
+            _codexPage = CodexWindow.Page.Potions;
+            RefreshCodexWindow(open: true);
+        }
+
+        void SetCodexPage(CodexWindow.Page page)
+        {
+            _codexPage = page;
+            RefreshCodexWindow();
+        }
+
+        void RefreshCodexWindow(bool open = false)
+        {
+            if (_codexWindow == null)
+                return;
+
+            _codexRowBuffer.Clear();
+            if (_codexPage == CodexWindow.Page.Potions)
+                BuildCodexPotionRows();
+            else
+                BuildCodexJournalRows();
+
+            if (open)
+                _codexWindow.Open(CodexHeader(), _codexPage, _codexRowBuffer);
+            else
+                _codexWindow.Render(CodexHeader(), _codexPage, _codexRowBuffer);
+        }
+
+        void BuildCodexPotionRows()
+        {
+            foreach (PotionData potion in _potionCatalog)
+            {
+                if (_codex.IsDiscovered(potion.id))
+                {
+                    string label = $"{potion.displayEmoji} {potion.displayName}  [{CompositionShort(potion.composition)}]  {potion.baseValue}G";
+                    string capturedId = potion.id;
+                    bool canRebrew = CanRebrew(potion);
+                    _codexRowBuffer.Add(new CodexWindow.Row(
+                        label, PlaceholderPalette.ForComposition(potion.composition),
+                        true, "재제조", canRebrew, () => RebrewRecipe(capturedId)));
+                }
+                else
+                {
+                    _codexRowBuffer.Add(new CodexWindow.Row(
+                        "❔ ??? (미발견 포션)", new Color(0.16f, 0.16f, 0.19f), false, null, false, null));
+                }
+            }
+        }
+
+        void BuildCodexJournalRows()
+        {
+            foreach (PotionData byproduct in _byproductCatalog)
+            {
+                if (_codex.IsDiscovered(byproduct.id))
+                {
+                    string label = $"{byproduct.displayEmoji} {byproduct.displayName}  {byproduct.baseValue}G";
+                    _codexRowBuffer.Add(new CodexWindow.Row(
+                        label, PlaceholderPalette.ForComposition(byproduct.composition), false, null, false, null));
+                }
+                else
+                {
+                    _codexRowBuffer.Add(new CodexWindow.Row(
+                        "❔ ??? (미기록 실패작)", new Color(0.16f, 0.16f, 0.19f), false, null, false, null));
+                }
+            }
+        }
+
+        string CodexHeader()
+        {
+            int discovered = _codex.DiscoveredCount;
+            int total = _codex.TotalEntries;
+            int percent = total > 0 ? Mathf.RoundToInt((float)_codex.CompletionRatio * 100f) : 0;
+            int bonusPercent = Mathf.RoundToInt((float)_codex.GoldBonusFraction * 100f);
+            return $"발견 {discovered}/{total} ({percent}%)  ·  글로벌 골드 +{bonusPercent}%  ·  ✨ 별빛 조각 {_session.StarlightShards}";
+        }
+
+        /// <summary>발견 레시피 원클릭 재제조 — 조성에서 재료를 역산해 자동 투입.</summary>
+        public bool RebrewRecipe(string potionId)
+        {
+            PotionData potion = null;
+            foreach (PotionData p in _potionCatalog)
+                if (p != null && p.id == potionId) { potion = p; break; }
+            if (potion == null)
+                return false;
+
+            if (!TryBuildRecipeSelection(potion, out Dictionary<string, int> need))
+            {
+                MapCustomerFx.Spawn(new Vector3(CodexCenter.x, CodexCenter.y + 0.8f, 0f), "재료가 부족해요");
+                return false;
+            }
+
+            BuildBrewInputs(need);
+            BrewAttemptResult result = _brewStation.Attempt(_brewInputBuffer, BuildBrewContext(), _session.Inventory);
+            if (result.IsPotionSuccess)
+                MapCustomerFx.Spawn(new Vector3(CodexCenter.x, CodexCenter.y + 0.8f, 0f),
+                    $"재제조: {ItemName(potionId)} +1");
+            else
+                MapCustomerFx.Spawn(new Vector3(CodexCenter.x, CodexCenter.y + 0.8f, 0f), "재료가 부족해요");
+
+            RefreshCodexWindow();
+            return result.IsPotionSuccess;
+        }
+
+        bool CanRebrew(PotionData potion)
+        {
+            if (!TryBuildRecipeSelection(potion, out Dictionary<string, int> need))
+                return false;
+            foreach (KeyValuePair<string, int> pair in need)
+                if (_session.Inventory.GetCount(pair.Key) < pair.Value)
+                    return false;
+            return true;
+        }
+
+        // 조성 + 지정 재료를 실제 인벤토리 재료 id로 역산(원소당 단위 재료 사용). 매핑 불가한 원소가 있으면 false.
+        bool TryBuildRecipeSelection(PotionData potion, out Dictionary<string, int> need)
+        {
+            need = new Dictionary<string, int>(System.StringComparer.Ordinal);
+            Core.ElementComposition c = potion.composition;
+            for (int e = 0; e < Core.ElementComposition.SlotCount; e++)
+            {
+                int amount = c[(Core.Element)e];
+                if (amount <= 0)
+                    continue;
+                if (!_elementUnitIngredient.TryGetValue((Core.Element)e, out string unitId))
+                    return false;   // 이 원소의 단위 재료가 없음 (S06 범위 밖)
+                need.TryGetValue(unitId, out int have);
+                need[unitId] = have + amount;
+            }
+
+            if (potion.requiredIngredients != null)
+            {
+                foreach (IngredientRequirement req in potion.requiredIngredients)
+                {
+                    if (req == null || req.item == null || string.IsNullOrEmpty(req.item.id))
+                        return false;
+                    need.TryGetValue(req.item.id, out int have);
+                    need[req.item.id] = have + req.count;
+                }
+            }
+            return need.Count > 0;
         }
 
         // ---- 팝업 (전부 GameSession API 호출로만 동작) ----
@@ -576,6 +1023,15 @@ namespace WizardGarden
                 _hud.SetGold($"💰 {_session.Wallet.Gold:N0}G");
         }
 
+        void RefreshCodexHud()
+        {
+            if (_hud == null || _codex == null)
+                return;
+            int percent = _codex.TotalEntries > 0 ? Mathf.RoundToInt((float)_codex.CompletionRatio * 100f) : 0;
+            int bonusPercent = Mathf.RoundToInt((float)_codex.GoldBonusFraction * 100f);
+            _hud.SetCodex($"📖 {_codex.DiscoveredCount}/{_codex.TotalEntries} ({percent}%) · 골드+{bonusPercent}% · ✨{_session.StarlightShards}");
+        }
+
         void RefreshInventoryHud()
         {
             if (_hud == null)
@@ -622,8 +1078,46 @@ namespace WizardGarden
 
             BuildGardenZone();
             BuildWorkshopZone();
+            BuildBreweryZone();
             BuildShopZone();
             BuildProps();
+        }
+
+        void BuildBreweryZone()
+        {
+            // 상단 중앙 조합 구역 패치 (정원·공방 사이 빈 공간)
+            MapPlaceholderFactory.CreateSquare(transform, "BreweryPatch", new Vector2(3.4f, 3.9f),
+                new Color(0.20f, 0.16f, 0.24f), -50, new Vector3(CauldronCenter.x, 2.35f, 0f));
+
+            // 가마솥 — 조합 창 진입
+            var cauldronGo = new GameObject("Cauldron");
+            cauldronGo.transform.SetParent(transform, false);
+            cauldronGo.transform.localPosition = new Vector3(CauldronCenter.x, CauldronCenter.y, 0f);
+            var cauldronMarker = cauldronGo.AddComponent<MapTile>();
+            cauldronMarker.kind = MapTile.Kind.Cauldron;
+            var cauldronCollider = cauldronGo.AddComponent<BoxCollider2D>();
+            cauldronCollider.size = new Vector2(2.0f, 1.5f);
+            MapPlaceholderFactory.CreateSquare(cauldronGo.transform, "Body", new Vector2(2.0f, 1.5f),
+                new Color(0.34f, 0.24f, 0.42f), 0);
+            MapPlaceholderFactory.CreateText(cauldronGo.transform, "Emoji", "🍯", 64, 0.1f, Color.white, 8,
+                new Vector3(0f, 0.12f, 0f));
+            MapPlaceholderFactory.CreateText(cauldronGo.transform, "Label", "가마솥 — 클릭: 조합", 40, 0.055f,
+                Color.white, 8, new Vector3(0f, -1.02f, 0f));
+
+            // 도감 책 — 도감 창 진입
+            var codexGo = new GameObject("CodexBook");
+            codexGo.transform.SetParent(transform, false);
+            codexGo.transform.localPosition = new Vector3(CodexCenter.x, CodexCenter.y, 0f);
+            var codexMarker = codexGo.AddComponent<MapTile>();
+            codexMarker.kind = MapTile.Kind.Codex;
+            var codexCollider = codexGo.AddComponent<BoxCollider2D>();
+            codexCollider.size = new Vector2(1.4f, 1.0f);
+            MapPlaceholderFactory.CreateSquare(codexGo.transform, "Body", new Vector2(1.4f, 1.0f),
+                new Color(0.22f, 0.30f, 0.44f), 0);
+            MapPlaceholderFactory.CreateText(codexGo.transform, "Emoji", "📖", 52, 0.08f, Color.white, 8,
+                new Vector3(0f, 0.08f, 0f));
+            MapPlaceholderFactory.CreateText(codexGo.transform, "Label", "도감", 36, 0.05f, Color.white, 8,
+                new Vector3(0f, -0.72f, 0f));
         }
 
         void BuildGardenZone()
@@ -768,7 +1262,19 @@ namespace WizardGarden
             return new Vector3(StandRowCenter.x + (index - 1) * StandSpacing, StandRowCenter.y, 0f);
         }
 
+        /// <summary>가마솥 월드 좌표 (스모크 테스트).</summary>
+        public Vector3 CauldronWorldPosition => new Vector3(CauldronCenter.x, CauldronCenter.y, 0f);
+
+        /// <summary>도감 책 월드 좌표 (스모크 테스트).</summary>
+        public Vector3 CodexWorldPosition => new Vector3(CodexCenter.x, CodexCenter.y, 0f);
+
         /// <summary>모달 팝업 (스모크 테스트가 항목을 실행할 때 사용).</summary>
         public MapPopup Popup => _popup;
+
+        /// <summary>조합 창 (스모크 테스트).</summary>
+        public BrewWindow BrewWindow => _brewWindow;
+
+        /// <summary>도감 창 (스모크 테스트).</summary>
+        public CodexWindow CodexWindow => _codexWindow;
     }
 }

@@ -47,9 +47,10 @@ namespace WizardGarden.Tests
         }
 
         [Test]
-        public void CurrentVersion_IsThree()
+        public void CurrentVersion_IsFour()
         {
-            Assert.AreEqual(3, SaveData.CurrentVersion);
+            // S06에서 v4로 상향 (도감 발견·별빛 조각 필드 추가)
+            Assert.AreEqual(4, SaveData.CurrentVersion);
         }
 
         [Test]
@@ -65,7 +66,7 @@ namespace WizardGarden.Tests
             };
 
             Assert.IsTrue(SaveMigrator.TryMigrate(data));
-            Assert.AreEqual(3, data.version);
+            Assert.AreEqual(SaveData.CurrentVersion, data.version); // v2 → 현재 버전까지 체인
             Assert.AreEqual(0, data.gold);
             Assert.IsNotNull(data.unlockedIds);
             Assert.IsNotNull(data.shopDisplaySlots);
@@ -81,7 +82,7 @@ namespace WizardGarden.Tests
             var data = new SaveData { version = 1, resourceSeconds = 42.0, gardenSlots = null, inventoryItems = null };
 
             Assert.IsTrue(SaveMigrator.TryMigrate(data));
-            Assert.AreEqual(3, data.version);
+            Assert.AreEqual(SaveData.CurrentVersion, data.version); // v1 → 현재 버전까지 체인
             Assert.IsNotNull(data.gardenSlots);
             Assert.IsNotNull(data.unlockedIds);
             Assert.AreEqual(42.0, data.shopLastCustomerAtResourceSeconds, 1e-9);

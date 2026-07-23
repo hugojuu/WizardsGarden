@@ -13,6 +13,7 @@ namespace WizardGarden
         Font _font;
         Text _clockLabel;
         Text _goldLabel;
+        Text _codexLabel;
         Text _inventoryLabel;
 
         void Awake()
@@ -32,6 +33,12 @@ namespace WizardGarden
         {
             if (_goldLabel != null)
                 _goldLabel.text = text;
+        }
+
+        public void SetCodex(string text)
+        {
+            if (_codexLabel != null)
+                _codexLabel.text = text;
         }
 
         public void SetInventory(string text)
@@ -61,11 +68,15 @@ namespace WizardGarden
             topBar.GetComponent<Image>().color = new Color(0.06f, 0.06f, 0.08f, 0.75f);
 
             _clockLabel = CreateText(topBar.transform, "ClockLabel", "", 20, TextAnchor.MiddleLeft);
-            SetRect((RectTransform)_clockLabel.transform, new Vector2(0f, 0f), new Vector2(0.6f, 1f),
+            SetRect((RectTransform)_clockLabel.transform, new Vector2(0f, 0f), new Vector2(0.34f, 1f),
                 new Vector2(16f, 0f), Vector2.zero, new Vector2(0f, 0.5f));
 
+            _codexLabel = CreateText(topBar.transform, "CodexLabel", "📖 도감 0/0", 17, TextAnchor.MiddleCenter);
+            SetRect((RectTransform)_codexLabel.transform, new Vector2(0.34f, 0f), new Vector2(0.72f, 1f),
+                Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
+
             _goldLabel = CreateText(topBar.transform, "GoldLabel", "💰 0G", 22, TextAnchor.MiddleRight);
-            SetRect((RectTransform)_goldLabel.transform, new Vector2(0.6f, 0f), new Vector2(1f, 1f),
+            SetRect((RectTransform)_goldLabel.transform, new Vector2(0.72f, 0f), new Vector2(1f, 1f),
                 new Vector2(-16f, 0f), Vector2.zero, new Vector2(1f, 0.5f));
 
             // 창고 패널 (우상단 — 맵의 여백 위)
@@ -82,7 +93,7 @@ namespace WizardGarden
 
             // 조작 힌트 (하단)
             Text hint = CreateText(canvasGo.transform, "Hint",
-                "빈 밭=심기 · 자란 식물=수확 · 작업대=가공 · 진열대=진열/회수 · 잠긴 밭=확장  |  F12 디버그 화면",
+                "빈 밭=심기 · 자란 식물=수확 · 작업대=가공 · 가마솥=조합 · 도감=발견목록 · 진열대=진열/회수  |  F12 디버그",
                 15, TextAnchor.MiddleCenter);
             SetRect(hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 12f),
                 new Vector2(1100f, 24f), new Vector2(0.5f, 0f));

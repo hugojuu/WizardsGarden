@@ -1,8 +1,19 @@
 # 진행 상태
 
-**현재**: S05 완료 (2026-07-23, 조합 매칭 엔진 — 순수 C# 로직 + EditMode 184/184 통과) — 다음 세션은 **S06** (조합 UI·발견 연출·도감)
+**현재**: S06 완료 (2026-07-23, 도감·발견 UX — 자유 투입 조합 UI + 발견 연출 + 도감 + 완성도 보너스, 세이브 v4, EditMode 215/215 통과) — 다음 세션은 **S07** (포션 33종 전체 데이터 authoring)
 
 ## 완료된 세션
+- **S06 — 도감 + 발견 UX (M2)** (2026-07-23)
+  - 순수 C# 코어 신규 (`Assets/Scripts/Core`, ns `WizardGarden.Core`, MonoBehaviour 비의존 — EditMode 테스트):
+    `Codex`(발견 상태=영구 진행도. 포션·부산물 우주를 어댑터가 `RegisterPotion/RegisterByproduct`로 등록 → 발견 id 집합(SortedSet, 결정적 저장)과 교집합으로 완성 수 집계. `Discover(id)` 신규 여부 반환, `CompletionRatio`·`PotionDiscoveredCount`·`ByproductDiscoveredCount`·`ApplyGoldBonus`·`RestoreFrom/WriteTo`. 등록 우주는 SO 테이블에서 오므로 **분모가 데이터에 따라 자동 확장** — S07이 33종 다 만들면 완성율 재계산) · `CodexBonus`(완성도→골드 보너스 곡선: 25/50/75/100% → +5/15/30/50%, `ApplyBonus`=곱연산·내림, 경계 epsilon 여유) · `BrewStation`(자유 투입 오케스트레이터 — S05 `BrewMatcher` 판정 + `Codex` 발견 + 인벤토리 소비/산출을 한 번에. **성공·부산물만 재료 소비, 재료부족·조건불충족은 안내라 미소비** — S05 인계대로 UI 결정. `BrewAttemptResult`=Status(Discovered/AlreadyKnown/Byproduct/MissingIngredient/ConditionNotMet/InvalidInput)+산출물·신규여부·별빛보상)
+  - 코어 배선: `GameSession`에 `Codex`+`StarlightShards`(별빛 조각) 소유·`AddStarlight`·복원/기록. `Shop.TickCustomers`에 **`saleGoldModifier` 선택 인자**(판매 골드 곱연산 훅 — Shop은 도감을 모름, 어댑터가 `Codex.ApplyGoldBonus` 주입). 기존 시그니처 전부 호환(선택 인자)
+  - 세이브 v4: `CurrentVersion` 3→4, 필드 `discoveredCodexIds`(발견 id, id 오름차순)·`starlightShards` 추가. `SaveMigrator` case 3(v3→v4: 미발견·0). 마이그레이션 체인 v1/v2/v3→v4 전부 통과
+  - 어댑터 신규 (`Assets/Scripts`, ns `WizardGarden`, uGUI 코드 생성 — 맵과 분리 레이어): `BrewWindow`(가마솥 자유 투입 창 — 창고 재료 +/− 담기·현재 투입 조성 합·제조/비우기/닫기·결과 문구. 재료행 색=원소색) · `CodexWindow`(포션 도감 — 포션/실험 일지 2페이지 탭, 상단 완성도·골드보너스·별빛, 미발견 ❔???, 발견 시 이름·조성·**재제조 버튼**)
+  - `MapScreen` 배선: 맵에 **가마솥(🍯 조합)·도감 책(📖) 스테이션 신설**(`MapTile.Kind.Cauldron/Codex` 추가, 상단 중앙 조합 구역). 클릭 라우팅·모달 입력 게이트(`AnyModalOpen`) 확장. 포션·부산물 SO를 `_itemsById`에 등록(판매/표시)+`Codex` 우주 등록, `BrewRecipeFactory`로 `BrewMatcher`/`BrewStation` 구성. **원클릭 재제조**=조성에서 재료 역산(`_elementUnitIngredient`: 원소→단위 재료 id, 마른 잎/단일원소 종자에서 구축). 손님 판매에 `ApplyCodexGoldBonus` 주입. HUD 상단바에 도감 완성도/보너스/별빛 라벨 추가
+  - SO 에셋 신규 (`Assets/Data/Potions`, `SampleDataBootstrap` 확장 — 메뉴 **Create Sample Data (S01+S04+S06)**): **현재 재료(마른 잎 4종)로 도달 가능한 포션만** — 단일 4종(작은 화염/치유/견고함/신속=🔥3/💧3/🌍3/💨3, 50G) + 2원소 대칭 6종(증기/용암/폭풍/약초/비구름/모래폭풍=3+3, 400G) = **포션 10종** + 실패 부산물 3종(탁한 포션 5G/수상한 침전물 15G/희뿌연 안개병 12G, id=`potion_murky/sediment/mist`=BrewRecipeFactory 상수). `MapSceneBootstrap`가 `potionOptions`/`byproductOptions` 배선. **나머지 23종(3원소·전설·비대칭·재료지정·조건부·전용)은 S07 몫 — 만들지 않음**
+  - 검증: 컴파일 에러/경고 0 · EditMode **215/215 통과**(기존 184 유지 + S06 신규 31: CodexBonus 6 · Codex 10 · BrewStation 11 · SaveMigrationV4 4. 기존 SaveMigrationV3Tests 3건은 v4 상향 대응 수정 — "vN 대응" 절차). 플레이 모드 스모크: 가마솥 클릭→마른 화염잎 3개 투입(조성 불3)→**작은 화염 포션 발견**(✨+별빛 조각 1)→도감 등록(1/13, 8%)→**원클릭 재제조**(재료 역산 3개 소진, 포션 2개)→실패 조합(마른 잎 1개→탁한 포션+실험 일지 1/3)→치유/견고함/신속 발견으로 5/13(38%) 돌파→**진열 판매에 완성도 +5% 곱연산 확인(2×50=100→105G)**. 스크린샷 `Captures/S06_1~4_*.png`(조합창·발견·도감 포션·실험 일지, git 미추적). 스모크 세이브는 백업 후 원복
+  - 완료 기준 대비: 미발견 조합 투입→발견→도감 등록→원클릭 재제조 한 흐름 ✅ · 실패 시 실험 일지 등록 ✅
+
 - **S05 — 조합 매칭 엔진 (M2)** (2026-07-23)
   - 순수 C# 코어 신규 (`Assets/Scripts/Core`, ns `WizardGarden.Core`, **MonoBehaviour 비의존**):
     `BrewMatcher`(4단계 판정 엔진 — 레시피 목록을 `Dictionary<ElementComposition, List<BrewRecipe>>` 조성 인덱스로 변환해 주입받음. `Evaluate(inputs, ctx)` 집계형 + `Evaluate(총조성, id별개수, 총가치, ctx)` 직접형 2오버로드) · `BrewRecipe`/`IngredientRequirementSpec`/`BrewByproduct`/`FailureByproductSet`(순수 레시피·부산물 데이터) · `BrewResult`+`BrewOutcome`(Success/MissingIngredient/ConditionNotMet/FailureByproduct 4분류)+`FailureByproductKind`(Murky/Sediment/Mist) · `BrewInputItem`(투입 묶음: id·단위조성·단위가치·개수) · `IBrewContext`+`BrewContext`(조건 주입 인터페이스 — TimeOfDay/Weather/Season) · `BrewConditionInterpreter`(조건 태그 파서 — night_only / time: / weather: / season:)
@@ -53,6 +64,11 @@
   - 완료 기준 대비: 폴더/스키마/컨벤션 기록 ✅ · 컴파일 클린 ✅ (dotnet 교차 빌드 0에러/0경고 + Editor.log에서 Unity 컴파일 성공 확인) · 샘플 SO 에셋 ✅ (2026-07-22 MCP 연결 후 부트스트랩 실행 — 5종 생성·값 검증·EditMode 테스트 6/6 통과)
 
 ## 세션 간 인계 메모
+- (S06→S07) **포션 데이터 authoring 이어받기**: S06은 마른 잎 4종으로 도달 가능한 **10종만** 만들었다(단일 4 + 2원소 대칭 6, `Assets/Data/Potions`). 남은 **23종**은 S07: 3원소(변신/비행/투명화/영혼, 2+2+2)·전설(현자의 엘릭서, 별빛 분말 지정)·비대칭 6종·재료지정 3종·조건부 3종(달빛/생명수/검은태양)·전용 3종(마음의 묘약/수호/행운). **조성·판매가·지정재료·조건태그는 `Assets/Tests/BrewFixture.cs`에 33종 전부 정확히 있으니 그대로 SO로 옮기면 됨**(id·조성·baseValue·requiredIngredients·conditionTags 1:1). authoring 방식은 `SampleDataBootstrap.CreatePotion`(+지정재료·조건태그는 SO 인스펙터 또는 부트스트랩 확장). 새 포션은 `MapScreen.potionOptions`(=`MapSceneBootstrap.PotionAssetPaths`)에 추가하면 자동으로 매칭·도감·판매·완성도 분모에 반영됨(완성율은 그때 33+3=36 기준으로 재계산)
+- (S06→S07) **지정재료 SO 필요**: 재료지정 3종·전설·마음의 묘약은 지정재료 식물/재료 SO가 있어야 실패 안 함. 잠정 id는 아래 S05 인계 메모 목록 — 그 식물·재료(용의 입김초·인어의 머리카락·세계수 묘목·별빛 분말·무지개 수정 촉매)를 실제 테이블에 만들 때 id 일치시킬 것. 그리고 **원클릭 재제조 역산**(`MapScreen._elementUnitIngredient`)은 현재 원소당 단위(합1) 재료만 매핑 — 티어2+ 식물(🔥2 등)이나 지정재료가 필요한 레시피의 재제조는 단위 재료가 인벤에 있어야만 동작(조성 역산이 단위 재료 기준). 다원소 단위가 없는 조성은 재제조 버튼이 비활성(안내). 필요하면 S07/이후가 역산 로직을 다입력 대응으로 확장
+- (S06→S11) **조건부 포션 개방**: S06은 `IBrewContext`에 **TimeOfDay만 실값**(`GameClockRunner.Clock.CurrentTimeOfDay`), 날씨=Clear·계절=Spring **고정 주입**(`MapScreen.BuildBrewContext`). S11이 실제 날씨·계절 공급자를 여기 물리면 생명수(비)·검은태양(일식)·계절 레시피가 열림. **야간 조건(달빛 포션)은 지금도 실제로 동작** — 밤(21~06시)에 💧2💨2 조합하면 발견됨(스모크에서 확인). 미충족 시 `ConditionNotMet`(재료 미소비)로 안내
+- (S06→S08/경영) **완성도 골드 보너스는 판매에만 배선**: `Shop.TickCustomers`의 `saleGoldModifier`로 손님 판매 골드에 곱연산. 다른 골드 수입원(오프라인 정산 등)이 생기면 동일 훅(`Codex.ApplyGoldBonus`)을 그 경로에도 적용할 것. 부산물 판매가 30% 캡(기획서)은 **미배선** — 부산물은 baseValue로 상점 판매(S06 부산물가 5/15/12G로 악용 여지 미미, 실제 캡은 조합 즉시결과에만 존재). 필요 시 상점에 아이템별 동적 판매가 도입할 때 반영
+- (S06) **디버그 GameScreen은 미배선**: 조합·도감·완성도 보너스는 맵(`MapScreen`) 경로에만 배선. 디버그 화면(F12)에서 판매하면 보너스 없이 baseValue로 팔림 — 디버그용이라 의도된 차이
 - (S05→S06) **매칭 엔진 사용법**: `var matcher = new WizardGarden.Core.BrewMatcher(recipes, byproducts);` → `matcher.Evaluate(inputs, context)`. `recipes`/`byproducts`는 `WizardGarden.BrewRecipeFactory.ToRecipes(potionDataList)` + `BrewRecipeFactory.BuildByproducts(murkySO, sedimentSO, mistSO)`로 SO에서 만든다(부산물 SO 없으면 기획서 기본값으로 대체). 입력은 `List<BrewInputItem>`(재료 id·단위조성·단위가치·개수). 결과 `BrewResult.Outcome`으로 분기: Success→`result.Recipe`(발견 연출·도감 등록·판매), MissingIngredient→`result.Hint`+`result.MissingIngredients`(id·부족수 — 브루트포스 방지 위해 UI는 재료명 노출 수위 조절), ConditionNotMet→`result.UnmetConditionTags`, FailureByproduct→`result.ByproductKind`/`result.Byproduct`/`result.ByproductSalePrice`
 - (S05→S06) **재료 소비·산출은 엔진 밖**: 엔진은 순수 판정만 함(인벤토리 미조작). S06이 판정 후 `Inventory.TryRemove`로 투입 소비 + 산출 포션/부산물을 `Inventory.Add`. 포션 판매는 상점이 ItemData 공통으로 동작(S04 인계) → 포션 SO를 `GameScreen._itemsById`(또는 맵 상점 목록)에 등록 필요
 - (S05→S06) **부산물 3종·포션 30종 SO 에셋 미생성**: 테스트는 코드 픽스처(`Assets/Tests/BrewFixture.cs`)로만 검증. S06(또는 데이터 세션)이 `Assets/Data/Potions`에 33종 SO를 만들 때 픽스처의 id/조성/판매가/조건태그를 그대로 옮기면 됨. 부산물 id는 `BrewRecipeFactory` 상수(potion_murky/sediment/mist)에 맞출 것
@@ -79,6 +95,15 @@
 - (S03→S04) 심기 가능한 종자 목록·growthSeconds 조회는 `GardenScreen.seedOptions`(인스펙터 SO 참조)가 유일한 소스. 세이브에 있는데 목록에 없는 식물 id는 경고 후 즉시 수확 가능 처리(세이브 잠김 방지)
 
 ## 개발 중 바뀐 결정
+- (S06) **조합 진입점 = 별도 가마솥(🍯) 스테이션 신설** (작업대 재사용 아님). 작업대(Bench)는 1차 가공(S04) 전용 유지, 조합·발견은 가마솥 클릭 → `BrewWindow`. 도감은 도감 책(📖) 스테이션 클릭 → `CodexWindow`. CLAUDE.md/기획서 2-2장 "작업대/가마솥 클릭 → UI 창"을 두 시설로 분리 — 가공 진행 상태와 조합 UI가 한 클릭에 얽히지 않게. `MapTile.Kind`에 Cauldron/Codex 추가, 맵 상단 중앙(정원·공방 사이) 조합 구역에 배치
+- (S06) **도감 완성도 분모 = 등록된 SO 수(데이터 주도)**, 고정 33 아님. `Codex`는 어댑터가 등록한 포션·부산물 id만 분모로 센다. S06은 13종(포션 10+부산물 3) 등록 → 발견율이 13 기준. S07이 33+3 다 등록하면 자동으로 36 기준 재계산. 발견 id는 세이브에 그대로 보존되므로 분모가 늘어도 마이그레이션 불필요. **초반 시연에선 13 기준이라 소수 발견으로도 25% 보너스 도달 가능**(의도 — 재미 판정용)
+- (S06) **재료 소비 정책**: 성공(포션)·실패 부산물만 재료 소비, **지정재료 부족(`MissingIngredient`)·조건 불충족(`ConditionNotMet`)은 미소비**(안내 결과 — 재료 돌려줌). S05가 "엔진은 분류만, UI가 소비 결정"으로 남긴 것을 이렇게 확정(브루트포스 방지 안내는 벌하지 않음). 실제로 S06 authoring 범위엔 지정재료·조건 포션이 없어 이 분기는 논리적 대비(테스트로 커버)
+- (S06) **별빛 조각 = 신규 포션 발견 1건당 1개** (부산물 발견은 실험 일지 등록만, 별빛 없음 — 기획서 7장 "포션 발견 보상"). `GameSession.StarlightShards`(long)로 보유, 세이브 v4. S06에선 소비처 없음(누적·표시만) — 프레스티지/특전 세션에서 사용
+- (S06) **골드 보너스 배선 = `Shop.TickCustomers` 선택 인자(`saleGoldModifier`)로 곱연산**. Shop은 도감을 모르고 어댑터가 `Codex.ApplyGoldBonus`를 주입 — 코어 결합 최소화. 판매 총액에 곱연산·내림(단위가×수량 후 보너스)
+- (S06) **원클릭 재제조 = 조성 역산**(재료 스냅샷 저장 아님). `MapScreen._elementUnitIngredient`(원소→단위 재료 id, `recipeOptions` 마른 잎 → 없으면 단일원소 종자에서 구축)로 목표 조성을 단위 재료 다발로 역산해 자동 투입. 세이브에 재료 조합을 안 남겨도 리로드 후 재제조 가능. 한계는 위 S07 인계 참조(단위 재료 필요)
+- (S06) **실패 부산물도 조성 0짜리 PotionData SO로 authoring** (`potion_murky/sediment/mist`, 판매가 5/15/12G, id=BrewRecipeFactory 상수). 상점에서 ItemData 공통으로 팔리고 도감 실험 일지에 표시되려면 SO가 필요 — S05 인계 "SO 또는 상수" 중 SO 선택
+- (S06) **플레이스홀더 조성 표시에 한글 병기** (`불/물/대지/바람`) — LegacyRuntime 폰트에 이모지 글리프가 없어 🔥💧🌍💨가 빈칸으로 보이는 환경 대비(플레이스홀더 규약 "한글 라벨이 의미 전달"). 조합 창 투입 조성 요약·재료행·도감 조성 태그에 적용
+- (S06) **세이브 버전 하드코딩 테스트 3건 v4 대응 수정** (`SaveMigrationV3Tests`: CurrentVersion_IsThree→IsFour, v1/v2 마이그레이션 종착 버전 assert를 `SaveData.CurrentVersion` 심볼로). S04의 "v3 대응 수정" 선례와 동일 절차 — 스키마 버전이 바뀌면 버전 리터럴 테스트는 갱신 대상
 - (S05) **결과 4분류를 하나의 `BrewResult` 구조체 + 팩토리로 통합** — Success/MissingIngredient/ConditionNotMet/FailureByproduct를 enum `Outcome`으로 분기하고 outcome별로 유효 필드만 채움. UI(S06)가 단일 반환값으로 스위치 처리
 - (S05) **파이프라인 우선순위**: 같은 조성 후보군에서 (a) 재료+조건 전부 충족 후보가 있으면 성공(가장 구체적 조건 우선), (b) 없으면 재료는 됐는데 조건만 실패 → `ConditionNotMet`, (c) 재료부터 실패 → `MissingIngredient`. 즉 "조건 안내"가 "재료 안내"보다 우선 — 조성·재료가 맞았는데 시간만 틀린 경우가 더 진전된 상태라서. 33종엔 조성 충돌이 약초/생명수(둘 다 재료 없음)뿐이라 실무상 단일 후보 처리가 대부분
 - (S05) **조건 불충족·재료 부족은 부산물을 만들지 않음** — 기획서 6장 "어느 것에도 불일치 시"에만 부산물(4단계). 조성이 어떤 레시피와 맞았다면(재료/조건만 부족) 부산물이 아니라 안내 결과. 실제로 재료·시간을 버리게 할지는 S06 UI 결정(엔진은 분류만)

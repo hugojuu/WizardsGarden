@@ -16,7 +16,7 @@ namespace WizardGarden.EditorTools
         private const string PotionFolder = "Assets/Data/Potions";
         private const string MaterialFolder = "Assets/Data/Materials";
 
-        [MenuItem("WizardGarden/Create Sample Data (S01+S04)")]
+        [MenuItem("WizardGarden/Create Sample Data (S01+S04+S06)")]
         public static void CreateSampleData()
         {
             EnsureFolder("Assets/Data");
@@ -48,12 +48,40 @@ namespace WizardGarden.EditorTools
             CreateMaterial("Material_DriedWindLeaf", "material_dried_wind_leaf", "마른 바람잎",
                 new ElementComposition(0, 0, 0, 1), "🍂", 5, "Plant_DandelionPuff");
 
+            // 포션 — S06 발견 시연용: 현재 재료(마른 잎 4종 = 🔥1/💧1/🌍1/💨1)로 도달 가능한 것만.
+            // 단일 4종(원소 ×3 = 마른 잎 ×3) + 2원소 대칭 6종(3+3 = 마른 잎 ×6). 나머지 23종은 S07 몫.
             CreatePotion("Potion_MinorFlame", "potion_minor_flame", "작은 화염 포션",
                 new ElementComposition(3, 0, 0, 0), 50, PotionCategory.Attack);
+            CreatePotion("Potion_MinorHeal", "potion_minor_heal", "작은 치유 포션",
+                new ElementComposition(0, 3, 0, 0), 50, PotionCategory.Recovery);
+            CreatePotion("Potion_MinorGuard", "potion_minor_guard", "작은 견고함 포션",
+                new ElementComposition(0, 0, 3, 0), 50, PotionCategory.Defense);
+            CreatePotion("Potion_MinorHaste", "potion_minor_haste", "작은 신속 포션",
+                new ElementComposition(0, 0, 0, 3), 50, PotionCategory.Support);
+            CreatePotion("Potion_Steam", "potion_steam", "증기 포션",
+                new ElementComposition(3, 3, 0, 0), 400, PotionCategory.Special);
+            CreatePotion("Potion_Lava", "potion_lava", "용암 포션",
+                new ElementComposition(3, 0, 3, 0), 400, PotionCategory.Special);
+            CreatePotion("Potion_Storm", "potion_storm", "폭풍 포션",
+                new ElementComposition(3, 0, 0, 3), 400, PotionCategory.Special);
+            CreatePotion("Potion_Herb", "potion_herb", "약초 포션",
+                new ElementComposition(0, 3, 3, 0), 400, PotionCategory.Special);
+            CreatePotion("Potion_Raincloud", "potion_raincloud", "비구름 포션",
+                new ElementComposition(0, 3, 0, 3), 400, PotionCategory.Special);
+            CreatePotion("Potion_Sandstorm", "potion_sandstorm", "모래폭풍 포션",
+                new ElementComposition(0, 0, 3, 3), 400, PotionCategory.Special);
+
+            // 실패 부산물 3종 (실험 일지) — 조성은 산출물이라 0, id는 BrewRecipeFactory 상수와 일치.
+            CreatePotion("Potion_Murky", "potion_murky", "탁한 포션",
+                new ElementComposition(0, 0, 0, 0), 5, PotionCategory.Special, "🫗");
+            CreatePotion("Potion_Sediment", "potion_sediment", "수상한 침전물",
+                new ElementComposition(0, 0, 0, 0), 15, PotionCategory.Special, "🧫");
+            CreatePotion("Potion_Mist", "potion_mist", "희뿌연 안개병",
+                new ElementComposition(0, 0, 0, 0), 12, PotionCategory.Special, "🌫️");
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[S01+S04] 샘플 데이터 생성 완료 — 식물 5종 (티어1 4 + 티어2 1) + 재료 4종 + 포션 1종");
+            Debug.Log("[S01+S04+S06] 샘플 데이터 생성 완료 — 식물 5종 + 재료 4종 + 포션 10종 + 부산물 3종");
         }
 
         private static void CreatePlant(string assetName, string id, string displayName,
@@ -93,7 +121,7 @@ namespace WizardGarden.EditorTools
         }
 
         private static void CreatePotion(string assetName, string id, string displayName,
-            ElementComposition composition, int sellPrice, PotionCategory category)
+            ElementComposition composition, int sellPrice, PotionCategory category, string displayEmoji = "🧪")
         {
             string path = $"{PotionFolder}/{assetName}.asset";
             var potion = LoadOrCreate<PotionData>(path);
@@ -102,7 +130,7 @@ namespace WizardGarden.EditorTools
             potion.composition = composition;
             potion.baseValue = sellPrice;
             potion.category = category;
-            potion.displayEmoji = "🧪";
+            potion.displayEmoji = displayEmoji;
             potion.requiredIngredients.Clear();
             potion.conditionTags.Clear();
             potion.equipEffectId = string.Empty;

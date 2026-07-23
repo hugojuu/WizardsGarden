@@ -31,6 +31,12 @@ namespace WizardGarden.Core
         /// <summary>골드 해금 상태 (S04).</summary>
         public UnlockState Unlocks { get; }
 
+        /// <summary>포션 도감 — 발견 상태·완성도·골드 보너스 (S06).</summary>
+        public Codex Codex { get; }
+
+        /// <summary>보유 별빛 조각 — 발견 보상 (S06).</summary>
+        public long StarlightShards { get; private set; }
+
         /// <summary>Begin에서 세이브를 복원했는가 (false = 새 게임).</summary>
         public bool LoadedFromSave { get; private set; }
 
@@ -48,6 +54,7 @@ namespace WizardGarden.Core
             Workshop = new Workshop();
             Shop = new Shop();
             Unlocks = new UnlockState();
+            Codex = new Codex();
         }
 
         /// <summary>세이브가 있으면 복원 + 오프라인 경과 계산, 없으면 새 게임 상태.</summary>
@@ -62,6 +69,8 @@ namespace WizardGarden.Core
                 Workshop.RestoreFrom(data);
                 Shop.RestoreFrom(data);
                 Unlocks.RestoreFrom(data);
+                Codex.RestoreFrom(data);
+                StarlightShards = data.starlightShards > 0 ? data.starlightShards : 0;
                 PendingOfflineSeconds = ComputeOfflineSeconds(data.lastSavedUtcTicks, _utcClock.UtcNow);
                 LoadedFromSave = true;
             }
@@ -70,6 +79,13 @@ namespace WizardGarden.Core
                 PendingOfflineSeconds = 0.0;
                 LoadedFromSave = false;
             }
+        }
+
+        /// <summary>별빛 조각 지급 (발견 보상 — 0 이하 무시).</summary>
+        public void AddStarlight(long amount)
+        {
+            if (amount > 0)
+                StarlightShards += amount;
         }
 
         /// <summary>현재 상태 저장 (마지막 저장 UTC 시각 포함).</summary>
@@ -83,6 +99,8 @@ namespace WizardGarden.Core
             Workshop.WriteTo(data);
             Shop.WriteTo(data);
             Unlocks.WriteTo(data);
+            Codex.WriteTo(data);
+            data.starlightShards = StarlightShards;
             data.lastSavedUtcTicks = _utcClock.UtcNow.Ticks;
             _repository.Save(data);
         }

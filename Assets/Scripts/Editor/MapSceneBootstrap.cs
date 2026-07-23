@@ -33,6 +33,29 @@ namespace WizardGarden.EditorTools
             "Assets/Data/Materials/Material_DriedWindLeaf.asset"
         };
 
+        // S06 발견 가능 포션 (마른 잎으로 도달 가능한 단일 4 + 2원소 6)
+        private static readonly string[] PotionAssetPaths =
+        {
+            "Assets/Data/Potions/Potion_MinorFlame.asset",
+            "Assets/Data/Potions/Potion_MinorHeal.asset",
+            "Assets/Data/Potions/Potion_MinorGuard.asset",
+            "Assets/Data/Potions/Potion_MinorHaste.asset",
+            "Assets/Data/Potions/Potion_Steam.asset",
+            "Assets/Data/Potions/Potion_Lava.asset",
+            "Assets/Data/Potions/Potion_Storm.asset",
+            "Assets/Data/Potions/Potion_Herb.asset",
+            "Assets/Data/Potions/Potion_Raincloud.asset",
+            "Assets/Data/Potions/Potion_Sandstorm.asset"
+        };
+
+        // S06 실패 부산물 3종 (실험 일지)
+        private static readonly string[] ByproductAssetPaths =
+        {
+            "Assets/Data/Potions/Potion_Murky.asset",
+            "Assets/Data/Potions/Potion_Sediment.asset",
+            "Assets/Data/Potions/Potion_Mist.asset"
+        };
+
         [MenuItem("WizardGarden/Setup Map Scene (S04b)")]
         public static void SetupMapScene()
         {
@@ -81,6 +104,26 @@ namespace WizardGarden.EditorTools
                     Debug.LogWarning($"[S04b] 재료 에셋 없음: {path} — 먼저 WizardGarden > Create Sample Data 실행");
             }
 
+            map.potionOptions.Clear();
+            foreach (string path in PotionAssetPaths)
+            {
+                var potion = AssetDatabase.LoadAssetAtPath<PotionData>(path);
+                if (potion != null)
+                    map.potionOptions.Add(potion);
+                else
+                    Debug.LogWarning($"[S06] 포션 에셋 없음: {path} — 먼저 WizardGarden > Create Sample Data 실행");
+            }
+
+            map.byproductOptions.Clear();
+            foreach (string path in ByproductAssetPaths)
+            {
+                var byproduct = AssetDatabase.LoadAssetAtPath<PotionData>(path);
+                if (byproduct != null)
+                    map.byproductOptions.Add(byproduct);
+                else
+                    Debug.LogWarning($"[S06] 부산물 에셋 없음: {path} — 먼저 WizardGarden > Create Sample Data 실행");
+            }
+
             // 구 GameScreen 탭 UI → 디버그 화면 강등 (삭제 금지 — F12/메뉴로 토글)
             var debugScreen = Object.FindFirstObjectByType<GameScreen>(FindObjectsInactive.Include);
             if (debugScreen != null && debugScreen.gameObject.activeSelf)
@@ -94,7 +137,7 @@ namespace WizardGarden.EditorTools
             EditorSceneManager.SaveScene(scene);
             EnsureSceneInBuildSettings();
 
-            Debug.Log($"[S04b] 맵 씬 구성 완료 — MapScreen + 종자 {map.seedOptions.Count}종 + 레시피 {map.recipeOptions.Count}종 ({ScenePath})");
+            Debug.Log($"[S04b/S06] 맵 씬 구성 완료 — MapScreen + 종자 {map.seedOptions.Count}종 + 레시피 {map.recipeOptions.Count}종 + 포션 {map.potionOptions.Count}종 + 부산물 {map.byproductOptions.Count}종 ({ScenePath})");
         }
 
         [MenuItem("WizardGarden/Toggle Debug Screen (Play)")]

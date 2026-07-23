@@ -105,9 +105,10 @@ namespace WizardGarden.Core
         /// <summary>
         /// 경과한 주기만큼 손님 방문 처리 (매 프레임 호출). 판매 대금은 지갑으로,
         /// 판매 기록은 salesOut에 추가 (빈 진열·가격 없음이면 손님은 그냥 돌아간다 — 주기는 소모).
+        /// saleGoldModifier: 판매 골드에 곱연산 보너스 등을 적용하는 훅(S06 도감 완성도 보너스). null이면 원가.
         /// </summary>
         public void TickCustomers(double nowResourceSeconds, Func<string, int> priceOf, Wallet wallet,
-            List<SaleRecord> salesOut = null)
+            List<SaleRecord> salesOut = null, Func<long, long> saleGoldModifier = null)
         {
             if (priceOf == null || wallet == null)
                 return;
@@ -117,11 +118,12 @@ namespace WizardGarden.Core
             while (nowResourceSeconds - LastCustomerAtResourceSeconds >= CustomerIntervalSeconds)
             {
                 LastCustomerAtResourceSeconds += CustomerIntervalSeconds;
-                ServeCustomer(priceOf, wallet, salesOut);
+                ServeCustomer(priceOf, wallet, salesOut, saleGoldModifier);
             }
         }
 
-        void ServeCustomer(Func<string, int> priceOf, Wallet wallet, List<SaleRecord> salesOut)
+        void ServeCustomer(Func<string, int> priceOf, Wallet wallet, List<SaleRecord> salesOut,
+            Func<long, long> saleGoldModifier)
         {
             foreach (DisplaySlot slot in _slots)
             {
@@ -135,6 +137,12 @@ namespace WizardGarden.Core
 
                 int count = Math.Min(slot.Count, MaxItemsPerVisit);
                 long gold = (long)unitPrice * count;
+                if (saleGoldModifier != null)
+                {
+                    long modified = saleGoldModifier(gold);
+                    if (modified >= 0)
+                        gold = modified;
+                }
 
                 slot.Count -= count;
                 if (slot.Count <= 0)
