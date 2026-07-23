@@ -1,8 +1,18 @@
 # 진행 상태
 
-**현재**: S04b 완료 + **★M1 재미 판정 통과** (2026-07-23, 유저: "괜찮은 거 같다" — 맵+커서 루프 리듬 승인) — 다음 세션은 **S05** (조합 매칭 엔진)
+**현재**: S05 완료 (2026-07-23, 조합 매칭 엔진 — 순수 C# 로직 + EditMode 184/184 통과) — 다음 세션은 **S06** (조합 UI·발견 연출·도감)
 
 ## 완료된 세션
+- **S05 — 조합 매칭 엔진 (M2)** (2026-07-23)
+  - 순수 C# 코어 신규 (`Assets/Scripts/Core`, ns `WizardGarden.Core`, **MonoBehaviour 비의존**):
+    `BrewMatcher`(4단계 판정 엔진 — 레시피 목록을 `Dictionary<ElementComposition, List<BrewRecipe>>` 조성 인덱스로 변환해 주입받음. `Evaluate(inputs, ctx)` 집계형 + `Evaluate(총조성, id별개수, 총가치, ctx)` 직접형 2오버로드) · `BrewRecipe`/`IngredientRequirementSpec`/`BrewByproduct`/`FailureByproductSet`(순수 레시피·부산물 데이터) · `BrewResult`+`BrewOutcome`(Success/MissingIngredient/ConditionNotMet/FailureByproduct 4분류)+`FailureByproductKind`(Murky/Sediment/Mist) · `BrewInputItem`(투입 묶음: id·단위조성·단위가치·개수) · `IBrewContext`+`BrewContext`(조건 주입 인터페이스 — TimeOfDay/Weather/Season) · `BrewConditionInterpreter`(조건 태그 파서 — night_only / time: / weather: / season:)
+  - 어댑터 (`Assets/Scripts`, ns `WizardGarden`): `BrewRecipeFactory`(PotionData(SO) → BrewRecipe 변환 + 부산물 세트 구성 — SO 접점을 여기 한 곳에 격리, S06이 이걸로 BrewMatcher 구성). 부산물 기본 id 상수 `potion_murky`/`potion_sediment`/`potion_mist`
+  - 4단계 파이프라인: 1) 조성 매칭(합==레시피, star 슬롯 포함 5칸 동일성) → 2) 재료 지정(부족 시 `MissingIngredient`+힌트 "핵심 재료가 빠진 것 같다", 부족 수량 반환) → 3) 조건 게이트(불충족 시 `ConditionNotMet`+미충족 태그) → 4) 실패 부산물(총합≤4 또는 동률→탁한 / 최다 🔥·🌍→침전물 / 💧·💨→안개병, 판매가=min(표기가, 투입가치×30%))
+  - **"같은 조성 다른 조건"**: 약초 포션(💧3🌍3 상시)/생명수 포션(💧3🌍3 weather:rain)이 조성 동일 → 조건이 더 구체적인(태그 수 많은) 레시피 우선 규칙. 비 오면 생명수, 아니면 약초 (기획서 6장 "숨김 규칙 1회만")
+  - **코어·어댑터·씬 무변경**: 기존 S01~S04b 코드/세이브 v3 손대지 않음 (조합 엔진은 독립 신규 모듈)
+  - 검증: 컴파일 에러/경고 0 · EditMode **184/184 통과**(기존 110 유지 + S05 신규 74: BrewMatcher 62 · ConditionInterpreter 12). 커버리지: 33종 전 레시피 성공(TestCaseSource 30 + 부산물 3분기) · 실패 3분기(총합/동률/최다원소) · 재료 지정 실패·부분 수량·힌트 · 조건부(야간/비/일식·재료+조건 결합) · "같은 조성 다른 조건" 우선순위 · **5번째 원소(별⭐) 슬롯 3케이스**(매칭 참여·조성 변화로 매칭 파괴·투입 집계 합산) · 판매가 30% 캡 · 투입 묶음 집계(조성합·id 카운트·가치합) · 경계(total 4/5 임계·빈 투입·조성 우선)
+  - 완료 기준 대비: 4단계 판정 전부 그린 ✅ · 매칭 로직 MonoBehaviour 비의존(테스트에서 `new BrewMatcher(...)`) ✅
+
 - **S04b — 맵 화면 전환 (Rusty형 프레젠테이션)** (2026-07-23) ★ M1 재검증
   - 신규 어댑터 (`Assets/Scripts`, ns `WizardGarden` — **코어 로직 무변경**, 전부 GameSession API 호출로만 동작):
     `MapScreen`(맵 오케스트레이터 — 월드 스페이스 구축·매 프레임 폴링 갱신·손님 tick·클릭 라우팅. 스모크 공용 API: `HandleWorldClick`/`GardenTileWorldPosition`/`BenchWorldPosition`/`ShopSlotWorldPosition`/`Popup`) · `MapTile`(클릭 대상 마커: GardenTile/Bench/ShopSlot + index, BoxCollider2D와 함께) · `MapPopup`(모달 목록 팝업 uGUI — 종자/가공/진열/확장 공용, 열 때마다 재구성, **닫은 뒤 액션 실행** — 해금 액션이 팝업을 다시 열어 목록 갱신) · `MapHud`(맵과 분리된 uGUI 레이어: 시계·골드·창고·힌트, 표시 전용 — 값은 MapScreen이 푸시) · `MapCustomerFx`(손님 연출: 판매 시 상점 앞 등장→2.6초 상승·페이드 — 유닛 AI는 S09) · `MapPlaceholderFactory`(흰 사각형 스프라이트 + 월드 TextMesh 생성 유틸)
@@ -43,6 +53,11 @@
   - 완료 기준 대비: 폴더/스키마/컨벤션 기록 ✅ · 컴파일 클린 ✅ (dotnet 교차 빌드 0에러/0경고 + Editor.log에서 Unity 컴파일 성공 확인) · 샘플 SO 에셋 ✅ (2026-07-22 MCP 연결 후 부트스트랩 실행 — 5종 생성·값 검증·EditMode 테스트 6/6 통과)
 
 ## 세션 간 인계 메모
+- (S05→S06) **매칭 엔진 사용법**: `var matcher = new WizardGarden.Core.BrewMatcher(recipes, byproducts);` → `matcher.Evaluate(inputs, context)`. `recipes`/`byproducts`는 `WizardGarden.BrewRecipeFactory.ToRecipes(potionDataList)` + `BrewRecipeFactory.BuildByproducts(murkySO, sedimentSO, mistSO)`로 SO에서 만든다(부산물 SO 없으면 기획서 기본값으로 대체). 입력은 `List<BrewInputItem>`(재료 id·단위조성·단위가치·개수). 결과 `BrewResult.Outcome`으로 분기: Success→`result.Recipe`(발견 연출·도감 등록·판매), MissingIngredient→`result.Hint`+`result.MissingIngredients`(id·부족수 — 브루트포스 방지 위해 UI는 재료명 노출 수위 조절), ConditionNotMet→`result.UnmetConditionTags`, FailureByproduct→`result.ByproductKind`/`result.Byproduct`/`result.ByproductSalePrice`
+- (S05→S06) **재료 소비·산출은 엔진 밖**: 엔진은 순수 판정만 함(인벤토리 미조작). S06이 판정 후 `Inventory.TryRemove`로 투입 소비 + 산출 포션/부산물을 `Inventory.Add`. 포션 판매는 상점이 ItemData 공통으로 동작(S04 인계) → 포션 SO를 `GameScreen._itemsById`(또는 맵 상점 목록)에 등록 필요
+- (S05→S06) **부산물 3종·포션 30종 SO 에셋 미생성**: 테스트는 코드 픽스처(`Assets/Tests/BrewFixture.cs`)로만 검증. S06(또는 데이터 세션)이 `Assets/Data/Potions`에 33종 SO를 만들 때 픽스처의 id/조성/판매가/조건태그를 그대로 옮기면 됨. 부산물 id는 `BrewRecipeFactory` 상수(potion_murky/sediment/mist)에 맞출 것
+- (S05→S06) **지정 재료 id는 잠정**: 별빛 분말=`material_starlight_powder`, 용의 입김초=`plant_dragon_breath_herb`, 인어의 머리카락=`material_mermaid_hair`, 세계수 묘목=`plant_world_tree_sapling`, 무지개 수정 촉매=`material_rainbow_crystal`. 해당 식물·재료 테이블 authoring 시 실제 id와 일치시킬 것(불일치하면 재료 지정 레시피가 영영 실패)
+- (S05→S11) **조건 주입 인터페이스**: `IBrewContext { TimeOfDay TimeOfDay; Weather Weather; Season Season; }`. S11이 실제 시간·날씨·계절 공급자를 이 인터페이스로 구현하면 됨(현재는 `GameClockRunner.Instance.Clock.CurrentTimeOfDay`로 TimeOfDay만 실값, 날씨·계절은 S11 전까지 Clear/Spring 고정 어댑터로). 조건 태그 문법: `night_only`·`time:{morning|day|evening|night}`·`weather:{clear|rain|storm|moonlit_night|meteor_shower|eclipse}`·`season:{spring|summer|autumn|winter}`. 인식 못한 태그는 불충족(false) 처리 — 신규 조건은 `BrewConditionInterpreter`에 파서 추가
 - (S04b→S05) 조합 UI 진입점은 **작업대 클릭** (기획서 2-2장: 작업대/가마솥 클릭 = 조합 UI 창). 현재 `MapScreen.OnBenchClicked`가 idle이면 1차 가공 팝업을 여는데, S05는 여기서 조합 창으로 확장/분기할 것. `MapPopup`은 단순 목록형 — 자유 투입·발견형 조합 UI는 별도 창이 필요
 - (S04b→S09) 견습생 유닛 세션 참조점: 맵 좌표계·구도 상수는 `MapScreen` 상단 const (정원 중심 -4.4,-0.4 / 작업대 3.1,1.7 / 진열대 행 4.6,-2.2 / 손님 지점 1.6,-3.35), 소팅오더 규약 = 지면 -100 · 구역 패치 -50 · 구역 라벨 -40 · 소품 -30 · 타일/시설 0~8 · 유닛(fx) 20~21. `MapCustomerFx`는 임시 연출 — S09 유닛 AI로 대체·확장
 - (S04b) 배속 치트·오프라인 정산으로 손님 주기 여러 개가 **한 프레임에 몰리면** fx 라벨이 겹침 (x −0.85 간격 스폰). 실플레이(10초 간격)에선 1명씩이라 문제 없음 — S08 오프라인 정산 요약 팝업이 근본 해결
@@ -64,6 +79,13 @@
 - (S03→S04) 심기 가능한 종자 목록·growthSeconds 조회는 `GardenScreen.seedOptions`(인스펙터 SO 참조)가 유일한 소스. 세이브에 있는데 목록에 없는 식물 id는 경고 후 즉시 수확 가능 처리(세이브 잠김 방지)
 
 ## 개발 중 바뀐 결정
+- (S05) **결과 4분류를 하나의 `BrewResult` 구조체 + 팩토리로 통합** — Success/MissingIngredient/ConditionNotMet/FailureByproduct를 enum `Outcome`으로 분기하고 outcome별로 유효 필드만 채움. UI(S06)가 단일 반환값으로 스위치 처리
+- (S05) **파이프라인 우선순위**: 같은 조성 후보군에서 (a) 재료+조건 전부 충족 후보가 있으면 성공(가장 구체적 조건 우선), (b) 없으면 재료는 됐는데 조건만 실패 → `ConditionNotMet`, (c) 재료부터 실패 → `MissingIngredient`. 즉 "조건 안내"가 "재료 안내"보다 우선 — 조성·재료가 맞았는데 시간만 틀린 경우가 더 진전된 상태라서. 33종엔 조성 충돌이 약초/생명수(둘 다 재료 없음)뿐이라 실무상 단일 후보 처리가 대부분
+- (S05) **조건 불충족·재료 부족은 부산물을 만들지 않음** — 기획서 6장 "어느 것에도 불일치 시"에만 부산물(4단계). 조성이 어떤 레시피와 맞았다면(재료/조건만 부족) 부산물이 아니라 안내 결과. 실제로 재료·시간을 버리게 할지는 S06 UI 결정(엔진은 분류만)
+- (S05) **현자의 엘릭서(🔥3💧3🌍3💨3 + ⭐별빛 분말) = 별빛 분말을 지정 재료로, 조성 star=0** 처리 — CLAUDE.md "별⭐ 예약, 현재 항상 0" 방침에 맞춰 출시판 조성에는 star를 넣지 않고 별빛 분말은 마음의 묘약의 "+무지개 수정 촉매"와 같은 촉매(지정 재료) 표기로 해석. 별 슬롯 동작은 별도 합성 테스트 3종으로 검증(파이프라인 배선 증명). **기획서가 star 수치를 명시 안 해 애매 — 아래 질문 참조**
+- (S05) **무지개 수정 와일드카드(Out) vs 촉매 존재 판정(In) 구분** — 무지개 수정 촉매를 조성 치환 와일드카드로 쓰는 로직은 미구현(보너스 콘텐츠). 단 마음의 묘약은 촉매를 "지정 재료 존재 여부"로만 판정해 33종에 포함(재료+조건 결합 커버리지 확보)
+- (S05) **실패 부산물 star 지배 케이스**: 최다 원소가 별⭐인 경우(예약 슬롯, 현재 미발생)는 기획서 미명세 → 안전하게 탁한 포션으로 기본 처리(주석·테스트로 명시)
+- (S05) **판매가 계산 = `min(표기가, floor(투입가치 × 0.30))`, 음수 0 클램프** — 기획서 6장 악용 방지. 투입가치는 `BrewInputItem`의 단위가치×개수 합, 어댑터/테스트가 직접 넘기는 오버로드도 제공
 - (S04b) **맵 좌표계·구도**: 월드 유닛 기준, 카메라 orthographic size 5(세로 10유닛) 고정 — 16:9에서 가로 ±8.9유닛 안에 전 구도 배치 (좌측 정원 3×4 그리드, 우상 공방, 우하 상점). 화면비가 더 좁으면 `MapScreen.SetupCamera`가 세로를 늘려 **가로 전폭을 보존** (미니 모드 대비 가로 구도 우선). 밭 12칸(상한)은 처음부터 전부 타일로 배치 — SlotCount 이후는 🔒 잠금 표시, 다음 구매 칸에만 가격 라벨, 잠긴 칸 클릭 = 확장 확인 팝업
 - (S04b) **클릭 처리 = 중앙 레이캐스트**: 오브젝트별 OnMouseDown 대신 MapScreen이 Input System(`Mouse.current`)으로 `Physics2D.OverlapPoint` → `MapTile` 마커(종류+인덱스) → 라우팅. 팝업 열림·디버그 화면 활성·포인터가 uGUI 위면 월드 클릭 무시. 스모크 테스트도 같은 `HandleWorldClick` 경로 사용 (마우스 핸들러와 코드 공유)
 - (S04b) **맵 텍스트 = TextMesh(레거시)** — 맵 오브젝트 uGUI 금지 방침. 이모지 글리프는 환경 따라 대체 문양으로 보일 수 있어 한글 라벨 병기 규약(S03) 유지. 성장 시각화 = 타일 안 식물 사각형 스케일(0.45/0.8/1.05) + 원소색 농도 + 이모지(🌱→식물) + 라벨(%→수확!)
