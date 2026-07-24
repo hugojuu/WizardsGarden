@@ -23,6 +23,15 @@
 - **SO 에셋 네이밍**: 파일명 `타입_영문PascalCase` (예: `Plant_EmberGrass`), `id` 필드는 `타입접두어_snake_case` (예: `plant_ember_grass`) — 세이브·크로스 참조는 항상 `id` 기준
 - **데이터 스키마 핵심**: 식물·재료·포션은 공통 베이스 `ItemData`(id·displayName·composition·baseValue) 상속. `ElementComposition`은 [Serializable] struct — 5칸(불/물/대지/바람/별⭐예약) + 합산(+)·일치(Matches)·포함(Contains)·최다 원소(TryGetDominantElement, 동률 시 false) 연산. 포션 조건 태그는 `List<string>`(예: `night_only`, `weather:rain`) — 해석은 매칭 알고리즘(S05) 몫
 
+## 아트 규약 (A01 확정 — 유저 승인 완료)
+- **레퍼런스**: 숲속의 작은 마녀 — 아늑한 고채도 픽셀. 지면 잔디는 **밝고 화사한 자연 녹색 + 부드러운 결(lineless)**
+- **규격**: 타일 32px · 캐릭터 스프라이트 48px(캔버스 ~92px, 8방향, low top-down) · 대화 초상 160px · 아이콘(식물/재료/포션) 48~64px · **PPU 32 (1유닛 = 1타일)**
+- **캐릭터 생성 순서(필수)**: ① 맵 도트 스프라이트 생성 → ② **그 스프라이트를 입력으로** 초상 생성(`create_portrait_character`, `character_to_portrait`, 160px). 이 순서가 맵↔대화 정체성 일관성을 보장한다
+- **티어는 크기·화려함으로 읽히게**: 티어1 식물은 소박한 새싹, 티어5는 웅장하게 (A01 학습)
+- **임포트는 자동**: `Assets/Art/` 아래 텍스처는 `PixelArtImportSettings`(AssetPostprocessor)가 Sprite·PPU32·Point·무압축·mipmap 없음을 자동 적용 — 손으로 세팅 금지, 규약 변경은 그 스크립트 한 곳만
+- **폴더**: `Assets/Art/{Characters,Portraits,Plants,Potions,Tiles,UI}`
+- 디테일 보정은 게임 화면에서 보면서 반복 (유저 방침) — 완벽을 기다리지 말고 넣고 고칠 것
+
 ## 작업 방식
 - **기간 추정·일정 이야기는 하지 않는다.** 순서와 완료 기준만 (유저 확정 방침)
 - 맡은 브리프의 **In 범위만** 구현. Out 범위는 다음 세션 몫이므로 미리 만들지 않는다
