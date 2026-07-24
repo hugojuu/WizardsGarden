@@ -33,6 +33,9 @@ namespace WizardGarden
         [Tooltip("실패 부산물 3종 (탁한 포션/수상한 침전물/희뿌연 안개병 — 실험 일지)")]
         public List<PotionData> byproductOptions = new List<PotionData>();
 
+        [Tooltip("맵 아트 (A02 — 비어 있으면 색 사각형 플레이스홀더로 동작)")]
+        public MapArtSet art = new MapArtSet();
+
         // ---- 맵 구도 상수 (가로형 — 16:9 · ortho size 5 기준, 미니 모드 대비) ----
         const float MapHalfWidth = 8.9f;
         const int GardenColumns = 4;
@@ -83,6 +86,15 @@ namespace WizardGarden
             public SpriteRenderer Plant;
             public TextMesh Emoji;
             public TextMesh Label;
+            public bool SoilIsArt;
+
+            /// <summary>흙 칸 색 — 아트 스프라이트면 색을 덮지 않고 명암만 준다.</summary>
+            public void SetSoilColor(Color placeholderColor, float artBrightness)
+            {
+                Soil.color = SoilIsArt
+                    ? new Color(artBrightness, artBrightness, artBrightness)
+                    : placeholderColor;
+            }
         }
 
         sealed class StationWidget
@@ -90,6 +102,13 @@ namespace WizardGarden
             public SpriteRenderer Body;
             public TextMesh Emoji;
             public TextMesh Label;
+            public bool BodyIsArt;
+
+            /// <summary>시설 색 — 아트 스프라이트면 원소색으로 물들이지 않는다(상태는 라벨이 전달).</summary>
+            public void SetBodyColor(Color placeholderColor)
+            {
+                Body.color = BodyIsArt ? Color.white : placeholderColor;
+            }
         }
 
         TileWidget[] _gardenTiles;
@@ -931,7 +950,7 @@ namespace WizardGarden
 
                 if (i >= unlockedCount)
                 {
-                    tile.Soil.color = new Color(0.15f, 0.12f, 0.10f);
+                    tile.SetSoilColor(new Color(0.15f, 0.12f, 0.10f), 0.42f);
                     tile.Plant.enabled = false;
                     tile.Emoji.text = "🔒";
                     tile.Emoji.color = new Color(1f, 1f, 1f, 0.45f);
@@ -947,7 +966,7 @@ namespace WizardGarden
                     continue;
                 }
 
-                tile.Soil.color = PlaceholderPalette.EmptySoil;
+                tile.SetSoilColor(PlaceholderPalette.EmptySoil, 1f);
                 tile.Emoji.color = Color.white;
                 tile.Label.color = Color.white;
 
@@ -1000,7 +1019,7 @@ namespace WizardGarden
 
             if (workshop.IsIdle)
             {
-                _bench.Body.color = new Color(0.42f, 0.30f, 0.19f);
+                _bench.SetBodyColor(new Color(0.42f, 0.30f, 0.19f));
                 _bench.Emoji.text = "🛠️";
                 _bench.Label.text = "작업대 — 클릭: 가공";
                 return;
@@ -1015,14 +1034,14 @@ namespace WizardGarden
 
             if (workshop.IsComplete(now, processingSeconds))
             {
-                _bench.Body.color = color;
+                _bench.SetBodyColor(color);
                 _bench.Emoji.text = material != null ? material.displayEmoji : "❓";
                 _bench.Label.text = $"{name} 완료! 클릭: 수령";
             }
             else
             {
                 double progress = workshop.GetProgress(now, processingSeconds);
-                _bench.Body.color = Color.Lerp(new Color(0.42f, 0.30f, 0.19f), color, 0.5f);
+                _bench.SetBodyColor(Color.Lerp(new Color(0.42f, 0.30f, 0.19f), color, 0.5f));
                 _bench.Emoji.text = "⚗️";
                 _bench.Label.text = $"{name} {(int)(progress * 100.0)}%";
             }
@@ -1037,16 +1056,16 @@ namespace WizardGarden
 
                 if (slot.IsEmpty)
                 {
-                    stand.Body.color = new Color(0.40f, 0.32f, 0.23f);
+                    stand.SetBodyColor(new Color(0.40f, 0.32f, 0.23f));
                     stand.Emoji.text = "➕";
                     stand.Label.text = "진열";
                     continue;
                 }
 
                 _itemsById.TryGetValue(slot.ItemId, out ItemData item);
-                stand.Body.color = item != null
+                stand.SetBodyColor(item != null
                     ? PlaceholderPalette.ForComposition(item.composition)
-                    : PlaceholderPalette.Neutral;
+                    : PlaceholderPalette.Neutral);
                 stand.Emoji.text = item != null ? item.displayEmoji : "❓";
                 string name = item != null ? item.displayName : slot.ItemId;
                 stand.Label.text = $"{name} ×{slot.Count}\n개당 {ResolvePrice(slot.ItemId)}G";
@@ -1134,8 +1153,11 @@ namespace WizardGarden
 
         void BuildMap()
         {
-            MapPlaceholderFactory.CreateSquare(transform, "Ground", new Vector2(19f, 10.6f),
-                new Color(0.20f, 0.30f, 0.17f), -100);
+            if (art.HasGround)
+                MapPlaceholderFactory.CreateSprite(transform, "Ground", art.ground, -100);
+            else
+                MapPlaceholderFactory.CreateSquare(transform, "Ground", new Vector2(19f, 10.6f),
+                    new Color(0.20f, 0.30f, 0.17f), -100);
 
             BuildGardenZone();
             BuildWorkshopZone();
@@ -1144,11 +1166,29 @@ namespace WizardGarden
             BuildProps();
         }
 
+        // 구역 바닥 패치 — 지면 아트가 있으면 이미 구워져 있으므로 색 사각형을 생략한다.
+        void BuildZonePatch(string name, Vector2 size, Color color, Vector3 position)
+        {
+            if (art.HasGround)
+                return;
+            MapPlaceholderFactory.CreateSquare(transform, name, size, color, -50, position);
+        }
+
+        // 시설 몸체 — 아트가 있으면 스프라이트, 없으면 색 사각형(플레이스홀더).
+        SpriteRenderer BuildStationBody(Transform parent, Sprite sprite, Vector2 placeholderSize,
+            Color placeholderColor, out bool isArt)
+        {
+            isArt = sprite != null;
+            return isArt
+                ? MapPlaceholderFactory.CreateSprite(parent, "Body", sprite, 0)
+                : MapPlaceholderFactory.CreateSquare(parent, "Body", placeholderSize, placeholderColor, 0);
+        }
+
         void BuildBreweryZone()
         {
             // 상단 중앙 조합 구역 패치 (정원·공방 사이 빈 공간)
-            MapPlaceholderFactory.CreateSquare(transform, "BreweryPatch", new Vector2(3.4f, 3.9f),
-                new Color(0.20f, 0.16f, 0.24f), -50, new Vector3(CauldronCenter.x, 2.35f, 0f));
+            BuildZonePatch("BreweryPatch", new Vector2(3.4f, 3.9f), new Color(0.20f, 0.16f, 0.24f),
+                new Vector3(CauldronCenter.x, 2.35f, 0f));
 
             // 가마솥 — 조합 창 진입
             var cauldronGo = new GameObject("Cauldron");
@@ -1158,10 +1198,11 @@ namespace WizardGarden
             cauldronMarker.kind = MapTile.Kind.Cauldron;
             var cauldronCollider = cauldronGo.AddComponent<BoxCollider2D>();
             cauldronCollider.size = new Vector2(2.0f, 1.5f);
-            MapPlaceholderFactory.CreateSquare(cauldronGo.transform, "Body", new Vector2(2.0f, 1.5f),
-                new Color(0.34f, 0.24f, 0.42f), 0);
-            MapPlaceholderFactory.CreateText(cauldronGo.transform, "Emoji", "🍯", 64, 0.1f, Color.white, 8,
-                new Vector3(0f, 0.12f, 0f));
+            BuildStationBody(cauldronGo.transform, art.cauldron, new Vector2(2.0f, 1.5f),
+                new Color(0.34f, 0.24f, 0.42f), out bool cauldronIsArt);
+            if (!cauldronIsArt)
+                MapPlaceholderFactory.CreateText(cauldronGo.transform, "Emoji", "🍯", 64, 0.1f, Color.white, 8,
+                    new Vector3(0f, 0.12f, 0f));
             MapPlaceholderFactory.CreateText(cauldronGo.transform, "Label", "가마솥 — 클릭: 조합", 40, 0.055f,
                 Color.white, 8, new Vector3(0f, -1.02f, 0f));
 
@@ -1173,10 +1214,11 @@ namespace WizardGarden
             codexMarker.kind = MapTile.Kind.Codex;
             var codexCollider = codexGo.AddComponent<BoxCollider2D>();
             codexCollider.size = new Vector2(1.4f, 1.0f);
-            MapPlaceholderFactory.CreateSquare(codexGo.transform, "Body", new Vector2(1.4f, 1.0f),
-                new Color(0.22f, 0.30f, 0.44f), 0);
-            MapPlaceholderFactory.CreateText(codexGo.transform, "Emoji", "📖", 52, 0.08f, Color.white, 8,
-                new Vector3(0f, 0.08f, 0f));
+            BuildStationBody(codexGo.transform, art.codexBook, new Vector2(1.4f, 1.0f),
+                new Color(0.22f, 0.30f, 0.44f), out bool codexIsArt);
+            if (!codexIsArt)
+                MapPlaceholderFactory.CreateText(codexGo.transform, "Emoji", "📖", 52, 0.08f, Color.white, 8,
+                    new Vector3(0f, 0.08f, 0f));
             MapPlaceholderFactory.CreateText(codexGo.transform, "Label", "도감", 36, 0.05f, Color.white, 8,
                 new Vector3(0f, -0.72f, 0f));
         }
@@ -1187,11 +1229,11 @@ namespace WizardGarden
             float gridWidth = GardenColumns * TileSize + (GardenColumns - 1) * TileSpacing;
             float gridHeight = rows * TileSize + (rows - 1) * TileSpacing;
 
-            MapPlaceholderFactory.CreateSquare(transform, "GardenPatch",
-                new Vector2(gridWidth + 0.7f, gridHeight + 0.7f), new Color(0.16f, 0.13f, 0.10f), -50,
-                new Vector3(GardenCenter.x, GardenCenter.y, 0f));
+            BuildZonePatch("GardenPatch", new Vector2(gridWidth + 0.7f, gridHeight + 0.7f),
+                new Color(0.16f, 0.13f, 0.10f), new Vector3(GardenCenter.x, GardenCenter.y, 0f));
             MapPlaceholderFactory.CreateText(transform, "GardenLabel", "🌱 정원", 48, 0.12f, Color.white, -40,
                 new Vector3(GardenCenter.x, GardenCenter.y + gridHeight * 0.5f + 0.65f, 0f));
+            BuildGardenFence(gridWidth, gridHeight);
 
             _gardenTiles = new TileWidget[Garden.MaxSlotCount];
             for (int i = 0; i < Garden.MaxSlotCount; i++)
@@ -1207,10 +1249,14 @@ namespace WizardGarden
                 var collider = tileGo.AddComponent<BoxCollider2D>();
                 collider.size = new Vector2(TileSize, TileSize);
 
+                bool soilIsArt = art.gardenPlot != null;
                 var widget = new TileWidget
                 {
-                    Soil = MapPlaceholderFactory.CreateSquare(tileGo.transform, "Soil",
-                        new Vector2(TileSize, TileSize), PlaceholderPalette.EmptySoil, 0),
+                    SoilIsArt = soilIsArt,
+                    Soil = soilIsArt
+                        ? MapPlaceholderFactory.CreateSprite(tileGo.transform, "Soil", art.gardenPlot, 0)
+                        : MapPlaceholderFactory.CreateSquare(tileGo.transform, "Soil",
+                            new Vector2(TileSize, TileSize), PlaceholderPalette.EmptySoil, 0),
                     Plant = MapPlaceholderFactory.CreateSquare(tileGo.transform, "Plant",
                         Vector2.one, PlaceholderPalette.Neutral, 4, new Vector3(0f, 0.08f, 0f)),
                     Emoji = MapPlaceholderFactory.CreateText(tileGo.transform, "Emoji", "", 64, 0.10f,
@@ -1223,10 +1269,37 @@ namespace WizardGarden
             }
         }
 
+        // 정원 울타리 — 밭 그리드 위·아래를 따라 조각을 반복 배치 (아트가 있을 때만).
+        void BuildGardenFence(float gridWidth, float gridHeight)
+        {
+            if (art.fence == null)
+                return;
+
+            const float step = 0.72f;
+            float halfWidth = gridWidth * 0.5f + 0.25f;
+            float top = GardenCenter.y + gridHeight * 0.5f + 0.35f;
+            float bottom = GardenCenter.y - gridHeight * 0.5f - 0.35f;
+            int count = Mathf.FloorToInt(halfWidth * 2f / step) + 1;
+            float startX = GardenCenter.x - halfWidth;
+
+            for (int i = 0; i < count; i++)
+            {
+                float x = startX + i * step;
+                MapPlaceholderFactory.CreateSprite(transform, $"Fence_T{i}", art.fence, -30,
+                    new Vector3(x, top, 0f));
+                MapPlaceholderFactory.CreateSprite(transform, $"Fence_B{i}", art.fence, -30,
+                    new Vector3(x, bottom, 0f));
+            }
+
+            if (art.waterBucket != null)
+                MapPlaceholderFactory.CreateSprite(transform, "PropWaterBucket", art.waterBucket, -30,
+                    new Vector3(-0.5f, -2.6f, 0f));
+        }
+
         void BuildWorkshopZone()
         {
-            MapPlaceholderFactory.CreateSquare(transform, "WorkshopPatch", new Vector2(4.4f, 3.4f),
-                new Color(0.24f, 0.23f, 0.26f), -50, new Vector3(BenchCenter.x, BenchCenter.y - 0.1f, 0f));
+            BuildZonePatch("WorkshopPatch", new Vector2(4.4f, 3.4f), new Color(0.24f, 0.23f, 0.26f),
+                new Vector3(BenchCenter.x, BenchCenter.y - 0.1f, 0f));
             MapPlaceholderFactory.CreateText(transform, "WorkshopLabel", "⚗️ 공방", 48, 0.12f, Color.white, -40,
                 new Vector3(BenchCenter.x, BenchCenter.y + 1.95f, 0f));
 
@@ -1238,12 +1311,14 @@ namespace WizardGarden
             var collider = benchGo.AddComponent<BoxCollider2D>();
             collider.size = new Vector2(2.0f, 1.4f);
 
+            SpriteRenderer body = BuildStationBody(benchGo.transform, art.workbench, new Vector2(2.0f, 1.4f),
+                new Color(0.42f, 0.30f, 0.19f), out bool benchIsArt);
             _bench = new StationWidget
             {
-                Body = MapPlaceholderFactory.CreateSquare(benchGo.transform, "Body", new Vector2(2.0f, 1.4f),
-                    new Color(0.42f, 0.30f, 0.19f), 0),
+                Body = body,
+                BodyIsArt = benchIsArt,
                 Emoji = MapPlaceholderFactory.CreateText(benchGo.transform, "Emoji", "🛠️", 64, 0.09f,
-                    Color.white, 8, new Vector3(0f, 0.1f, 0f)),
+                    Color.white, 8, new Vector3(0f, benchIsArt ? 1.15f : 0.1f, 0f)),
                 Label = MapPlaceholderFactory.CreateText(benchGo.transform, "Label", "", 40, 0.06f,
                     Color.white, 8, new Vector3(0f, -1.0f, 0f))
             };
@@ -1251,10 +1326,17 @@ namespace WizardGarden
 
         void BuildShopZone()
         {
-            MapPlaceholderFactory.CreateSquare(transform, "ShopPatch", new Vector2(5.6f, 3.4f),
-                new Color(0.30f, 0.22f, 0.15f), -50, new Vector3(StandRowCenter.x, StandRowCenter.y - 0.4f, 0f));
+            BuildZonePatch("ShopPatch", new Vector2(5.6f, 3.4f), new Color(0.30f, 0.22f, 0.15f),
+                new Vector3(StandRowCenter.x, StandRowCenter.y - 0.4f, 0f));
             MapPlaceholderFactory.CreateText(transform, "ShopLabel", "🏪 상점", 48, 0.12f, Color.white, -40,
                 new Vector3(StandRowCenter.x, StandRowCenter.y + 1.6f, 0f));
+
+            if (art.shopStall != null)
+                MapPlaceholderFactory.CreateSprite(transform, "PropShopStall", art.shopStall, -30,
+                    new Vector3(7.7f, -0.55f, 0f));
+            if (art.shopSign != null)
+                MapPlaceholderFactory.CreateSprite(transform, "PropShopSign", art.shopSign, -30,
+                    new Vector3(0.9f, -2.0f, 0f));
 
             _stands = new StationWidget[Shop.DisplaySlotCount];
             for (int i = 0; i < Shop.DisplaySlotCount; i++)
@@ -1269,12 +1351,14 @@ namespace WizardGarden
                 var collider = standGo.AddComponent<BoxCollider2D>();
                 collider.size = new Vector2(1.4f, 1.1f);
 
+                SpriteRenderer body = BuildStationBody(standGo.transform, art.shopShelf, new Vector2(1.4f, 1.1f),
+                    new Color(0.40f, 0.32f, 0.23f), out bool standIsArt);
                 _stands[i] = new StationWidget
                 {
-                    Body = MapPlaceholderFactory.CreateSquare(standGo.transform, "Body", new Vector2(1.4f, 1.1f),
-                        new Color(0.40f, 0.32f, 0.23f), 0),
+                    Body = body,
+                    BodyIsArt = standIsArt,
                     Emoji = MapPlaceholderFactory.CreateText(standGo.transform, "Emoji", "➕", 56, 0.08f,
-                        Color.white, 8, new Vector3(0f, 0.08f, 0f)),
+                        Color.white, 8, new Vector3(0f, standIsArt ? 0.92f : 0.08f, 0f)),
                     Label = MapPlaceholderFactory.CreateText(standGo.transform, "Label", "진열", 36, 0.05f,
                         Color.white, 8, new Vector3(0f, -0.88f, 0f))
                 };
@@ -1284,19 +1368,29 @@ namespace WizardGarden
                 new Color(1f, 1f, 1f, 0.9f), 8, new Vector3(StandRowCenter.x, -3.6f, 0f));
         }
 
+        // 여백 장식 — 숲속의 작은 마녀풍 아늑함. 아트가 없으면 기존 색 사각형 플레이스홀더.
         void BuildProps()
         {
-            var tree = MapPlaceholderFactory.CreateSquare(transform, "PropTree", new Vector2(1.0f, 1.4f),
-                new Color(0.13f, 0.25f, 0.14f), -30, new Vector3(8.0f, -3.6f, 0f));
-            MapPlaceholderFactory.CreateText(tree.transform, "Emoji", "🌲", 64, 0.10f, Color.white, -29);
+            BuildProp("PropTree", art.tree, new Vector3(7.4f, 3.3f, 0f), "🌲",
+                new Vector2(1.0f, 1.4f), new Color(0.13f, 0.25f, 0.14f), 64);
+            BuildProp("PropFlower", art.flowers, new Vector3(-1.3f, -4.6f, 0f), "🌼",
+                new Vector2(0.6f, 0.6f), new Color(0.24f, 0.34f, 0.19f), 48);
+            BuildProp("PropRock", art.rock, new Vector3(-8.3f, -1.0f, 0f), "🌿",
+                new Vector2(0.6f, 0.6f), new Color(0.24f, 0.34f, 0.19f), 48);
+        }
 
-            var flower = MapPlaceholderFactory.CreateSquare(transform, "PropFlower", new Vector2(0.6f, 0.6f),
-                new Color(0.24f, 0.34f, 0.19f), -30, new Vector3(0.9f, -3.9f, 0f));
-            MapPlaceholderFactory.CreateText(flower.transform, "Emoji", "🌼", 48, 0.09f, Color.white, -29);
-
-            var herb = MapPlaceholderFactory.CreateSquare(transform, "PropHerb", new Vector2(0.6f, 0.6f),
-                new Color(0.24f, 0.34f, 0.19f), -30, new Vector3(0.3f, 3.9f, 0f));
-            MapPlaceholderFactory.CreateText(herb.transform, "Emoji", "🌿", 48, 0.09f, Color.white, -29);
+        void BuildProp(string name, Sprite sprite, Vector3 position, string placeholderEmoji,
+            Vector2 placeholderSize, Color placeholderColor, int placeholderFontSize)
+        {
+            if (sprite != null)
+            {
+                MapPlaceholderFactory.CreateSprite(transform, name, sprite, -30, position);
+                return;
+            }
+            var box = MapPlaceholderFactory.CreateSquare(transform, name, placeholderSize, placeholderColor,
+                -30, position);
+            MapPlaceholderFactory.CreateText(box.transform, "Emoji", placeholderEmoji, placeholderFontSize,
+                0.10f, Color.white, -29);
         }
 
         // ---- 맵 좌표 (스모크 테스트 공용) ----

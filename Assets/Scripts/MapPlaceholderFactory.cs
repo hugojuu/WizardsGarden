@@ -62,6 +62,20 @@ namespace WizardGarden
             return renderer;
         }
 
+        /// <summary>실제 아트 스프라이트 SpriteRenderer 생성 (A02 — 네이티브 크기, PPU 32 = 1유닛/타일).</summary>
+        public static SpriteRenderer CreateSprite(Transform parent, string name, Sprite sprite,
+            int sortingOrder, Vector3 localPosition = default, float scale = 1f)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
+            go.transform.localScale = new Vector3(scale, scale, 1f);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = sortingOrder;
+            return renderer;
+        }
+
         /// <summary>월드 TextMesh 생성 (이모지 + 한글 라벨 플레이스홀더 규약).</summary>
         public static TextMesh CreateText(Transform parent, string name, string text, int fontSize,
             float characterSize, Color color, int sortingOrder, Vector3 localPosition = default)

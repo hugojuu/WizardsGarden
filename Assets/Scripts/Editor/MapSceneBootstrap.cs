@@ -104,6 +104,36 @@ namespace WizardGarden.EditorTools
             "Assets/Data/Potions/Potion_Mist.asset"
         };
 
+        // A02 — 맵 아트 (지면은 Bake Map Ground 결과, 소품은 PixelLab 생성분)
+        private const string TilesFolder = "Assets/Art/Tiles/";
+        private const string PropsFolder = "Assets/Art/Props/";
+
+        private static void WireMapArt(MapScreen map)
+        {
+            map.art ??= new MapArtSet();
+            map.art.ground = LoadSprite(TilesFolder + "MapGround.png");
+            map.art.gardenPlot = LoadSprite(TilesFolder + "Tile_GardenPlot.png");
+            map.art.fence = LoadSprite(PropsFolder + "Prop_Fence.png");
+            map.art.waterBucket = LoadSprite(PropsFolder + "Prop_WaterBucket.png");
+            map.art.workbench = LoadSprite(PropsFolder + "Prop_Workbench.png");
+            map.art.cauldron = LoadSprite(PropsFolder + "Prop_Cauldron.png");
+            map.art.codexBook = LoadSprite(PropsFolder + "Prop_CodexBook.png");
+            map.art.shopShelf = LoadSprite(PropsFolder + "Prop_ShopShelf.png");
+            map.art.shopSign = LoadSprite(PropsFolder + "Prop_ShopSign.png");
+            map.art.shopStall = LoadSprite(PropsFolder + "Prop_ShopStall.png");
+            map.art.tree = LoadSprite(PropsFolder + "Prop_Tree.png");
+            map.art.rock = LoadSprite(PropsFolder + "Prop_Rock.png");
+            map.art.flowers = LoadSprite(PropsFolder + "Prop_Flowers.png");
+        }
+
+        private static Sprite LoadSprite(string path)
+        {
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite == null)
+                Debug.LogWarning($"[A02] 맵 아트 없음: {path} — 해당 요소는 플레이스홀더로 표시됨");
+            return sprite;
+        }
+
         [MenuItem("WizardGarden/Setup Map Scene (S04b)")]
         public static void SetupMapScene()
         {
@@ -171,6 +201,8 @@ namespace WizardGarden.EditorTools
                 else
                     Debug.LogWarning($"[S06] 부산물 에셋 없음: {path} — 먼저 WizardGarden > Create Sample Data 실행");
             }
+
+            WireMapArt(map);
 
             // 구 GameScreen 탭 UI → 디버그 화면 강등 (삭제 금지 — F12/메뉴로 토글)
             var debugScreen = Object.FindFirstObjectByType<GameScreen>(FindObjectsInactive.Include);

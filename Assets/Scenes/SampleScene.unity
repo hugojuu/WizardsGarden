@@ -357,6 +357,20 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 27154c7a7b577424aa7f6c17693efac6, type: 2}
   - {fileID: 11400000, guid: 6bdae2042da744846920df9aa5f36fd2, type: 2}
   - {fileID: 11400000, guid: 264735c7ca48a314ca14d77a8d238fab, type: 2}
+  art:
+    ground: {fileID: 21300000, guid: 60bd741cf1fc1964a979da9b054f5de1, type: 3}
+    gardenPlot: {fileID: 21300000, guid: 488d95efabee671468f2712d651c2796, type: 3}
+    fence: {fileID: 21300000, guid: 0730a4b8e1c44b248959bc908a8699ff, type: 3}
+    waterBucket: {fileID: 21300000, guid: 5eeb86108d26aab4a9acd26aa6e63aa7, type: 3}
+    workbench: {fileID: 21300000, guid: 73e4fdb56b47de948b57b32f0d175eb5, type: 3}
+    cauldron: {fileID: 21300000, guid: 7b56231b7a6d95244b8ea8bf6ea1a3ce, type: 3}
+    codexBook: {fileID: 21300000, guid: b1d831dcc9c0ff44cb2b5e3f93c1f94a, type: 3}
+    shopShelf: {fileID: 21300000, guid: 30c257dafdb8d8a46b6222cd32130b33, type: 3}
+    shopSign: {fileID: 21300000, guid: 7e011dc5eabc0e34eb634933efc213a3, type: 3}
+    shopStall: {fileID: 21300000, guid: 4cf6da115f19e0f4f8d58cc6f147a60b, type: 3}
+    tree: {fileID: 21300000, guid: df3a50a2b644b1b46b2ffabf7990a41f, type: 3}
+    rock: {fileID: 21300000, guid: d1b1adf0e34fc7441960a7b2cb2c139a, type: 3}
+    flowers: {fileID: 21300000, guid: 5615e03b000726543aa5573d2f14a047, type: 3}
 --- !u!4 &580096920
 Transform:
   m_ObjectHideFlags: 0
