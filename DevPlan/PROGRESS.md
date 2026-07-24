@@ -1,8 +1,20 @@
 # 진행 상태
 
-**현재**: A02 완료 (2026-07-24, 구역 배경·타일 — 맵 지면을 색 사각형에서 실제 픽셀 타일·소품으로 교체. 잔디+돌바닥+나무바닥 Wang 타일셋 체이닝, 시설·소품 12종 PixelLab 생성. EditMode 217/217 유지 = 로직 무변경) · 직전 S07 완료 — 다음 개발 세션은 **S08**(오프라인 정산) 또는 **S09**(견습생 유닛·자동화), 아트는 **A03**(식물·아이콘)·**A04**(캐릭터 22명)
+**현재**: S08 완료 (2026-07-24, 오프라인 정산 — 자원 시간만 진행·8h 캡·효율 60%, 임시 자동화 상수(구역별)·복귀 요약 패널. 세이브 버전 무변경(v4). EditMode 234/234) · 다음 개발 세션은 **S09**(견습생 유닛·자동화 — **임시 자동화 상수 교체 자리**), 아트는 **A03**(식물·아이콘)·**A04**(캐릭터 22명)
 
 ## 완료된 세션
+- **S08 — 방치/오프라인 정산 (M3)** (2026-07-24)
+  - 순수 C# 코어 신규 (`Assets/Scripts/Core`, ns `WizardGarden.Core`, MonoBehaviour 비의존 — EditMode 테스트):
+    - `OfflineSettlement` — 정산 오케스트레이터. **유효 자원초 = min(raw, 캡 28800s=8h) × 효율 0.6** (기획서 22장). `EffectiveResourceSeconds(raw)`·`WasCapped(raw)` 순수 계산 + `Settle(clock, garden, inventory, shop, wallet, raw, growthOf, priceOf, goldModifier)` 오케스트레이션. **사건 시간(EventSeconds) 미변경** — `GameClock.AddResourceSeconds`만 호출 → 계절·날씨·VIP·모험은 오프라인 정지(기획서 22장 "정지된 것"). 캡·효율은 생성자 주입(테스트 커스텀 가능)
+    - `OfflineSettlementResult` — 요약(raw/유효초·WasCapped·GoldEarned·TotalHarvested·HarvestedToStorage·SoldCount·HasActivity)
+    - `IOfflineAutomation` + `FixedOfflineAutomation` — **★ 임시 자동화 상수 (S09 교체 지점)**. 구역별 처리율: `GardenHarvestRate`(정원 자동 수확 배율=1.0, 슬롯당 수확 = floor(유효초 × rate / 성장초)) · `ShopSalesRate`(상점 자동 판매 개/초=0.5, 온라인 상점 5개/10s와 동일 baseline). 견습생 부재라 고정 상수 — S09가 배치된 견습생 스탯 기반 구현으로 이 인터페이스만 갈아끼운다(정산 로직·세이브 무변경)
+  - **정산 2채널**: (A) 이미 진열된 재고를 손님이 구매 = `Shop.TickCustomers`(실제 메커니즘, 견습생 불필요·지갑 직접 적립) · (B) 정원 자동 수확 → 보관함 적재 + 수확분 자동 판매(판매 상한 = floor(유효초×ShopSalesRate)) → 골드. 수확 슬롯은 같은 작물로 **재파종**(복귀 플레이어가 이어서 키움). 골드에 **도감 완성도 보너스 적용**(`ApplyCodexGoldBonus` 주입 — S06/S07 인계 "정산 수입에도 완성도 보너스" 이행)
+  - 어댑터 (`Assets/Scripts`, ns `WizardGarden`):
+    - `MapScreen.RunOfflineSettlement()` — `Start` 말미에 1회 실행. `PendingOfflineSeconds` 읽어 정산 → `ClearPendingOfflineSeconds()` → 변화 있으면 복귀 요약 패널 오픈. `FixedOfflineAutomation` 인스턴스화 지점 = **S09 교체 대상**(주석 명시). 스모크용 public 반환
+    - `OfflineSummaryWindow` — 복귀 요약 모달(uGUI 코드 생성, sortingOrder 120 = 최상단). "다녀오셨군요! ✨" + 방치 시간·벌어들인 골드·수확량(보관함)·**8시간 캡 안내**·정지 항목("계절·날씨·VIP·모험은 그대로예요 (여전히 봄)"). `AnyModalOpen`에 포함(맵 입력 게이트)
+  - **세이브 버전 무변경 (v4 유지)** — 정산은 기존 `lastSavedUtcTicks`(S02) → `PendingOfflineSeconds` → `AddResourceSeconds` 훅만 사용. 신규 영속 필드 불필요, 마이그레이션 없음
+  - 검증: 컴파일 에러/경고 0 · EditMode **234/234 통과**(기존 217 + S08 신규 17: 유효초 계산 5·정산 오케스트레이션 8·8h/10h 시나리오 2·고정 자동화 상수 2) · `execute_code` 스모크(**세이브에 과거 시각 기록 → 재시작 → 정산**, 실 SystemUtcClock 왕복): **8h** raw 28800→유효 17280(캡 경계, wall-clock 미세 초과로 capped)·수확 23040·보관 14400·골드 8640·**사건초 0→0(정지)**·pending 0 / **10h** raw 36000→유효 17280(캡 동일)·수율 8h와 동일(캡 확인) / **4h** raw 14400→유효 8640(캡 미만·capped=False)·수확 11520·보관 7200·골드 4320·자원초 +8640·사건초 0. 기획서 22장 "8시간 자고 일어났을 때"(식물 자라 보관함 가득 + 자동 골드 누적 + 사건 정지) 재현
+
 - **A02 — 구역 배경·타일 (아트 트랙)** (2026-07-24)
   - **지면 타일셋 (PixelLab Wang, A01 잔디 체이닝)**: 승인 타일셋 `Tileset_GardenSoilGrass_Bright`의 밝은 잔디 base id(`441c70dd…`)를 `lower_base_tile_id`로 물려 **돌바닥**(`Tileset_WorkshopStone`, upper=`f2b79b60…`)·**나무바닥**(`Tileset_ShopWood`, upper=`e31d013f…`) 2종 생성. 전부 32px·4×4=16타일·high top-down·lineless·basic shading. **세 타일셋의 잔디 타일이 픽셀 단위로 동일**(체이닝 검증 — grass diff 0) → 이음매 없음
   - **맵 지면 굽기** (`MapGroundBaker.cs`, 에디터, 메뉴 **WizardGarden > Bake Map Ground (A02)**): 맵이 고정 구도라 런타임 오토타일 없이 **한 장으로 합성**. 타일셋을 코너 색으로 판독해 마스크→타일 인덱스 표를 만들고(레이아웃 무가정), 구역 사각형(공방+조합 = 돌 L자, 상점 = 나무)의 꼭짓점 판정으로 Wang 전이 타일을 깐다. 산출: `Assets/Art/Tiles/MapGround.png`(608×352=19×11타일, PPU32 → 정확히 19×10.99 유닛, 카메라 가로 ±9.5 덮음) + `Tile_GardenPlot.png`(48px=1.5유닛=TileSize, 밭 흙). 재실행 안전. **돌↔나무 직접 경계 방지**: 두 구역을 2칸 이상 이격(전이 타일은 잔디 상대로만 존재)
@@ -119,6 +131,10 @@
   - 완료 기준 대비: 폴더/스키마/컨벤션 기록 ✅ · 컴파일 클린 ✅ (dotnet 교차 빌드 0에러/0경고 + Editor.log에서 Unity 컴파일 성공 확인) · 샘플 SO 에셋 ✅ (2026-07-22 MCP 연결 후 부트스트랩 실행 — 5종 생성·값 검증·EditMode 테스트 6/6 통과)
 
 ## 세션 간 인계 메모
+- (S08→S09) **★ 임시 자동화 상수 교체 지점 = `FixedOfflineAutomation`** (`Assets/Scripts/Core/IOfflineAutomation.cs`). 정산 로직(`OfflineSettlement`)은 `IOfflineAutomation` 인터페이스(`GardenHarvestRate`·`ShopSalesRate`)에만 의존하므로, S09는 이 인터페이스를 **배치된 견습생 스탯 기반 구현으로 갈아끼우기만** 하면 된다(정산 로직·세이브 무변경). 인스턴스화는 `MapScreen.RunOfflineSettlement()` 한 곳(`new FixedOfflineAutomation()`) — 여기서 S09 구현으로 교체. 현재 baseline 값: 정원 수확 배율 1.0(성장 완료마다 자동 수확)·상점 판매 0.5개/초(온라인 상점 처리량과 동일). **공방 자동 가공(연금술사)은 S08 미구현** — 3직군(정원사/연금술사/점원) 실자동화는 S09가 인터페이스를 확장해 채운다(기획서 10장). S09가 자동화를 붙이면 온라인 초당 생산 곡선도 실측 재검증(S07 인계와 연동)
+- (S08→S09) **오프라인 vs 온라인 자동화 일원화 권장**: S08은 오프라인 정산 전용 자동화만 구현(온라인 중엔 여전히 클릭 수동). S09가 견습생 유닛을 실시간 tick으로 만들면, 오프라인 정산의 `IOfflineAutomation`도 같은 견습생 배치에서 파생하도록 통합할 것(오프라인 = "그동안 견습생이 일한 결과"). 정산 2채널(진열 재고 판매 / 정원 수확→자동 판매) 구조는 유지하되 처리율만 견습생 기반으로
+- (S08→S11) **정산은 사건 시간을 건드리지 않음(설계 확정)**: `OfflineSettlement.Settle`은 `GameClock.AddResourceSeconds`만 호출하고 `EventSeconds`는 절대 증가 안 시킴 → 계절·날씨·VIP·모험은 오프라인 정지가 보장됨. S11이 계절/날씨를 사건 시간(EventSeconds/DayIndex) 위에 얹으면 별도 처리 없이 "오프라인엔 계절 정지"가 성립. 복귀 요약 패널의 "여전히 봄" 문구는 현재 하드코딩(계절 시스템 전) — S11이 실제 계절을 넣으면 `MapScreen.BuildOfflineSummaryText`에서 현재 계절명으로 교체하고 "정지된 모험 남은시간" 등 실제 정지 상태를 추가할 것
+- (S08) **8시간 캡의 의미 = 오프라인 지속 상한**: 유효초 = min(raw, 28800) × 0.6. 즉 8시간을 넘게 비워도 최대 8시간분(× 효율 60% = 4.8시간분 자원초)만 적립. 정확히 8시간(raw=28800)은 캡 경계라 `WasCapped=false`(전량 적립), 초과분만 `WasCapped=true`로 "8시간까지만 정산됨" 안내. 캡·효율은 `OfflineSettlement` 생성자 인자라 밸런스 조정은 상수(`DefaultCapSeconds`/`DefaultEfficiency`)만 수정
 - (A02→A03, 2026-07-24) **진열대 = 상점 업그레이드 3단계 아트** (유저 결정): `Assets/Art/Props/Prop_ShopStand_T1(받침대)/T2(나무통)/T3(좌판테이블).png` — 전부 **빈 형태**, 진열 아이템은 게임이 위에 렌더링. A02 배선(진열대 교체)은 **A03로 이월**: 아이템 아이콘이 생겨야 "빈 시설 + 위에 아이템" 렌더가 완성되고, 작업대·가마솥도 빈 버전으로 함께 점검해야 하므로 A03에서 일괄. **상점 진열대 등급 상승 구매 메커니즘은 미구현 — 상점 업그레이드 기능(S트랙, 향후 세션) 몫** (기획서 2장 반영). 확정 아트 추가 보존: `Prop_Tree_Round.png`(둥근 나무), `Plant_EmberGrass_stage1.png`(불꽃풀 새싹형 = 식물 스타일 기준)
 - (A02→A03) **동적 콘텐츠 시설은 빈 형태로** (CLAUDE.md 규약): A02가 만든 작업대·가마솥 소품은 물건이 그려져 있으니, A03에서 빈 버전 재점검 + 내용물(가공중 포션 등)을 위에 렌더링하는 구조로
 - (A02→A03) **식물·시설 아이콘 교체 지점**: 정원 밭 위 식물은 `MapScreen.RefreshGardenTiles`의 `tile.Plant`(SpriteRenderer, 소팅 4) — 현재 원소색 사각형(단계별 스케일 0.45/0.8/1.05). A03가 식물 SO에 스프라이트 필드를 추가하면 여기서 `plant.sprite`로 교체(성장 단계별 스프라이트를 원하면 SO에 3장 또는 단계 배열). 시설 위 이모지(🛠️/⚗️ 등)도 A02는 아트일 때 위로 밀어 유지 — 필요 시 상태 아이콘으로 교체 가능. 아이템 아이콘은 `ItemData.displayEmoji` 참조 지점(HUD·팝업·상점 라벨)에 스프라이트 필드가 붙으면 됨
@@ -161,6 +177,11 @@
 - (S03→S04) 심기 가능한 종자 목록·growthSeconds 조회는 `GardenScreen.seedOptions`(인스펙터 SO 참조)가 유일한 소스. 세이브에 있는데 목록에 없는 식물 id는 경고 후 즉시 수확 가능 처리(세이브 잠김 방지)
 
 ## 개발 중 바뀐 결정
+- (S08) **정산 유효초 공식 = min(raw, 캡) × 효율** (캡을 raw에, 효율을 그 뒤에) — 기획서 22장 "8시간 캡, 효율 60%"를 "최대 8시간분을 60% 효율로 적립"으로 해석. 8시간분 자원초(28800) × 0.6 = 17280 자원초가 상한. 대안(효율 먼저→캡)은 캡의 의미가 흐려져 채택 안 함
+- (S08) **오프라인 골드/수확 = 임시 자동화 상수 기반, 인터페이스로 격리** — 견습생(S09)이 없어 실제 자동 작업 주체가 없으므로, `IOfflineAutomation`(구역별 처리율)을 stand-in으로 두고 `FixedOfflineAutomation`(고정값)으로 정산. **정산 로직은 인터페이스에만 의존** → S09가 견습생 기반 구현으로 교체 시 코어·세이브 무변경. 값은 근거 있는 baseline(정원 수확 배율 1.0·상점 판매 0.5개/초=온라인 상점과 동일)이라 기획서 22장 "8시간 시나리오"가 tier1 작물 기준 수만 골드/수확으로 재현됨
+- (S08) **수확분은 보관함 + 자동 판매 병행** (기획서 22장 "식물 자라서 보관함 가득" + "직원이 자동 작업으로 골드 누적" 양쪽 충족): 정원 자동 수확분을 인벤토리에 적재하되, 상점 판매율 상한만큼은 자동 판매해 골드로. 나머지는 보관함에 남김. 자동 수확 슬롯은 **같은 작물로 재파종**(빈 밭로 남기면 복귀 UX 나쁨)
+- (S08) **세이브 버전 무변경 (v4 유지)** — 정산은 S02가 이미 저장하는 `lastSavedUtcTicks` → `PendingOfflineSeconds` → `AddResourceSeconds` 훅만 소비. 정산 결과는 로드 즉시 계산·표시(영속 불필요)라 신규 필드·마이그레이션 없음
+- (S08) **복귀 요약 = 별도 모달(`OfflineSummaryWindow`, sortingOrder 120)** — 팝업/조합/도감 창(100~110)보다 위에 떠 복귀 즉시 안내. `AnyModalOpen`에 포함해 정산 확인 전 맵 오조작 방지. "여전히 봄"은 계절 시스템(S11) 전이라 하드코딩 — S11이 실제 계절·정지 모험 정보로 교체
 - (S07) **인어의 머리카락 = 티어3 물 식물** (재료 아님) — 기획서 4장 20종 표에 "티어3 물 = 인어의 머리카락 💧2🌍1"로 명시. S05 잠정 id `material_mermaid_hair`를 **`plant_mermaid_hair`로 확정**하고 `BrewFixture.MermaidHair` 동기화. 인어의 노래 포션(💧4🌍2)은 인어의 머리카락 ×2 = 💧4🌍2로 조성이 정확히 일치(지정재료 = 식물 ×2 공식). 나머지 지정재료 잠정 id(용의 입김초·세계수 묘목=식물, 별빛 분말·무지개 수정=3차 재료)는 그대로 확정
 - (S07) **`MaterialData`에 `extraInputs` 추가 (다중 입력 가공)** — S04가 남긴 "2·3차 다중입력 필요 시 재검토"를 이행. 시간의 모래(정수 4종)·무지개 수정(정수 2종)이 실제 제작되도록. **Workshop 코어는 무변경**(단일 주 원료 + 파생 진행도 유지) — 다중 입력은 어댑터가 시작 시 인벤에서 선소비(실패 시 롤백)하는 방식이라 세이브·테스트 무영향. 1차 가공은 extraInputs 빈 목록
 - (S07) **완성도 분모 = 33** (30 레시피 포션 + 3 실험일지) — 기획서 6장 "30종 + 실험 일지 3종". S06 인계 메모의 "33+3=36"은 오산(포션 33종 = 이미 30+3). 데이터 주도 분모라 SO 33개 등록으로 자동 확정, 세이브 마이그레이션 불필요

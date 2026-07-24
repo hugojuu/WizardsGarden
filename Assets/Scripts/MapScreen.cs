@@ -61,6 +61,7 @@ namespace WizardGarden
         BrewStation _brewStation;
         BrewWindow _brewWindow;
         CodexWindow _codexWindow;
+        OfflineSummaryWindow _offlineSummary;
         CodexWindow.Page _codexPage = CodexWindow.Page.Potions;
         string _brewResultText = "";
 
@@ -169,6 +170,9 @@ namespace WizardGarden
             _codexWindow.OnSelectPotions = () => SetCodexPage(CodexWindow.Page.Potions);
             _codexWindow.OnSelectJournal = () => SetCodexPage(CodexWindow.Page.Journal);
 
+            _offlineSummary = new GameObject("OfflineSummaryWindow").AddComponent<OfflineSummaryWindow>();
+            _offlineSummary.transform.SetParent(transform, false);
+
             GameScreen debugScreen = Object.FindFirstObjectByType<GameScreen>(FindObjectsInactive.Include);
             _debugScreenGo = debugScreen != null ? debugScreen.gameObject : null;
 
@@ -178,6 +182,8 @@ namespace WizardGarden
             RefreshInventoryHud();
             RefreshGoldHud();
             RefreshCodexHud();
+
+            RunOfflineSettlement();
         }
 
         void OnDestroy()
@@ -250,6 +256,62 @@ namespace WizardGarden
                 if (byproduct != null && byproduct.id == id)
                     return byproduct;
             return null;
+        }
+
+        // ---- S08 오프라인 정산 (복귀 시 자원 시간 정산 + 요약 패널) ----
+
+        /// <summary>
+        /// 세이브 복원으로 쌓인 오프라인 자원초를 정산하고(캡 8h·효율 60%·임시 자동화),
+        /// 변화가 있으면 복귀 요약 패널을 띄운다. 정산은 PendingOfflineSeconds를 소비 후 비우므로 1회만 실행됨.
+        /// (스모크 테스트 공용 진입점 — 결과 요약을 반환.)
+        /// </summary>
+        public Core.OfflineSettlementResult RunOfflineSettlement()
+        {
+            if (_session == null)
+                return null;
+            double raw = _session.PendingOfflineSeconds;
+            if (raw <= 0.0)
+                return null;
+
+            // ★ 임시 자동화 상수 — S09 견습생 시스템이 FixedOfflineAutomation을 교체한다.
+            var automation = new Core.FixedOfflineAutomation();
+            var settlement = new Core.OfflineSettlement(automation);
+            Core.OfflineSettlementResult result = settlement.Settle(
+                _session.Clock, _session.Garden, _session.Inventory, _session.Shop, _session.Wallet,
+                raw, GetGrowthSeconds, ResolvePrice, ApplyCodexGoldBonus);
+            _session.ClearPendingOfflineSeconds();
+
+            if (result.HasActivity && _offlineSummary != null)
+                _offlineSummary.Open("다녀오셨군요! ✨", BuildOfflineSummaryText(result));
+            return result;
+        }
+
+        static string BuildOfflineSummaryText(Core.OfflineSettlementResult r)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"{FormatDuration(r.RawOfflineSeconds)} 동안 정원을 비우셨네요.");
+            if (r.WasCapped)
+                sb.AppendLine("⏸️ 오프라인은 최대 8시간까지만 정산됩니다.");
+            sb.AppendLine("");
+            sb.AppendLine($"💰 +{r.GoldEarned:N0}G 를 벌었습니다");
+            if (r.TotalHarvested > 0)
+                sb.AppendLine($"🌾 {r.TotalHarvested:N0}개 수확 — 보관함에 {r.HarvestedToStorage:N0}개 쌓였어요");
+            sb.AppendLine("");
+            sb.AppendLine("⏸️ 계절·날씨·VIP·모험은 그대로예요 (여전히 봄 — 사건 시간은 정지)");
+            return sb.ToString();
+        }
+
+        // 자원 시간 경과 안내용 표기 (현실 시간 기준 raw 경과).
+        static string FormatDuration(double seconds)
+        {
+            if (seconds < 60.0)
+                return $"{(int)seconds}초";
+            int totalMinutes = (int)(seconds / 60.0);
+            int hours = totalMinutes / 60;
+            int minutes = totalMinutes % 60;
+            if (hours <= 0)
+                return $"{minutes}분";
+            return minutes > 0 ? $"{hours}시간 {minutes}분" : $"{hours}시간";
         }
 
         void Update()
@@ -347,7 +409,8 @@ namespace WizardGarden
         bool AnyModalOpen =>
             (_popup != null && _popup.IsOpen)
             || (_brewWindow != null && _brewWindow.IsOpen)
-            || (_codexWindow != null && _codexWindow.IsOpen);
+            || (_codexWindow != null && _codexWindow.IsOpen)
+            || (_offlineSummary != null && _offlineSummary.IsOpen);
 
         long ApplyCodexGoldBonus(long gold) => _codex != null ? _codex.ApplyGoldBonus(gold) : gold;
 
@@ -1431,5 +1494,8 @@ namespace WizardGarden
 
         /// <summary>도감 창 (스모크 테스트).</summary>
         public CodexWindow CodexWindow => _codexWindow;
+
+        /// <summary>복귀 요약 패널 (스모크 테스트).</summary>
+        public OfflineSummaryWindow OfflineSummary => _offlineSummary;
     }
 }
