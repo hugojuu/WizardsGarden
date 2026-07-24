@@ -47,10 +47,10 @@ namespace WizardGarden.Tests
         }
 
         [Test]
-        public void CurrentVersion_IsFour()
+        public void CurrentVersion_IsFive()
         {
-            // S06에서 v4로 상향 (도감 발견·별빛 조각 필드 추가)
-            Assert.AreEqual(4, SaveData.CurrentVersion);
+            // S09에서 v5로 상향 (견습생 보유·배치 필드 추가 — vN 대응 갱신)
+            Assert.AreEqual(5, SaveData.CurrentVersion);
         }
 
         [Test]

@@ -34,6 +34,9 @@ namespace WizardGarden.Core
         /// <summary>포션 도감 — 발견 상태·완성도·골드 보너스 (S06).</summary>
         public Codex Codex { get; }
 
+        /// <summary>견습생 보유·배치 (S09).</summary>
+        public ApprenticeRoster Roster { get; }
+
         /// <summary>보유 별빛 조각 — 발견 보상 (S06).</summary>
         public long StarlightShards { get; private set; }
 
@@ -55,6 +58,7 @@ namespace WizardGarden.Core
             Shop = new Shop();
             Unlocks = new UnlockState();
             Codex = new Codex();
+            Roster = new ApprenticeRoster();
         }
 
         /// <summary>세이브가 있으면 복원 + 오프라인 경과 계산, 없으면 새 게임 상태.</summary>
@@ -70,6 +74,7 @@ namespace WizardGarden.Core
                 Shop.RestoreFrom(data);
                 Unlocks.RestoreFrom(data);
                 Codex.RestoreFrom(data);
+                Roster.RestoreFrom(data);
                 StarlightShards = data.starlightShards > 0 ? data.starlightShards : 0;
                 PendingOfflineSeconds = ComputeOfflineSeconds(data.lastSavedUtcTicks, _utcClock.UtcNow);
                 LoadedFromSave = true;
@@ -100,6 +105,7 @@ namespace WizardGarden.Core
             Shop.WriteTo(data);
             Unlocks.WriteTo(data);
             Codex.WriteTo(data);
+            Roster.WriteTo(data);
             data.starlightShards = StarlightShards;
             data.lastSavedUtcTicks = _utcClock.UtcNow.Ticks;
             _repository.Save(data);

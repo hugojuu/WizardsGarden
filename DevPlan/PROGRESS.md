@@ -1,8 +1,24 @@
 # 진행 상태
 
-**현재**: S08 완료 (2026-07-24, 오프라인 정산 — 자원 시간만 진행·8h 캡·효율 60%, 임시 자동화 상수(구역별)·복귀 요약 패널. 세이브 버전 무변경(v4). EditMode 234/234) · 다음 개발 세션은 **S09**(견습생 유닛·자동화 — **임시 자동화 상수 교체 자리**), 아트는 **A03**(식물·아이콘)·**A04**(캐릭터 22명)
+**현재**: S09 완료 (2026-07-24, 견습생 유닛·자동화 M4 — 맵 위 유닛이 걸어다니며 실제로 일함. 순수 C# 상태기계+표시 어댑터, 3직군 행동, 배치 슬롯(각1·보유8>슬롯3), 스탯·효율(60/80/100%) 반영, **오프라인 정산을 견습생 기반으로 교체(0명=0자동화)**, 일반 8명 SO + 런타임(레벨/경험치/각성). 세이브 v4→v5. EditMode **283/283**. S09b 분리 없음 — In 범위 전량 구현) · 다음 개발 세션은 **S10**(패시브·영입·장비 루프), 아트는 **A03**(식물·아이콘)·**A04**(캐릭터 22명 — 견습생 유닛/초상)
 
 ## 완료된 세션
+- **S09 — 견습생 유닛: 이동·작업 행동 + 코어 (M4)** (2026-07-24) ★ 게임 정체성 세션
+  - **순수 C# 코어 신규** (`Assets/Scripts/Core`, ns `WizardGarden.Core`, MonoBehaviour 비의존 — EditMode 테스트):
+    - `ApprenticeState` — 견습생 런타임(직군·희귀도·4스탯·레벨·경험치·배치). **레벨업**(최대 20, 주 스탯 +1/레벨 — 결정적, 랜덤+2·스킬슬롯은 이후)·**각성**(10레벨+전설미만 → 희귀도 1단계↑). 스탯은 현재값을 직접 보관 → 세이브에 현재값 남겨 SO 없이 복원. `PrimaryStat`(정원사=친화력/연금술사=마력/점원=상술)
+    - `ApprenticeEfficiency` — 효율·속도 공식. 직군 기본 **60/80/100%**(기획서 10장) × (1 + 주 스탯 × 0.04). `WorkSeconds`(=기본/효율, 효율 높을수록 빠름)·`MoveSpeed`(2.2 + 주스탯×0.05). 온라인 유닛·오프라인 정산이 공유
+    - `ApprenticeAgent` — **이동·작업 상태 기계**(순수). `ApprenticePhase`(Idle/MovingToWork/Working/Returning). "대상 이동 → 작업(시간) → 복귀(운반)" 운동학만. `Assign(tx,ty,workSec)`·`Tick(dt)`(작업 완료 순간 true 1회 반환 → 어댑터가 게임 효과 실행). 좌표는 UnityEngine 비의존 float x/y
+    - `ApprenticeJobLogic` — **직군별 행동 결정**(순수, 실제 Garden/Shop/Workshop/Inventory로 판정). `WorkOrder`/`WorkKind`(Harvest/Plant/StartProcess/Collect/Display). 정원사(성숙밭 수확 우선 → 빈밭 재파종), 연금술사(완료 수령 → 대기 시 단일입력 레시피 시작), 점원(빈 진열대에 값>0 재고 진열). `SimpleRecipe`(단일 입력 가공만 자동 — 다중입력 정수·시간모래·무지개는 수동 유지)
+    - `ApprenticeRoster` — 보유 + 구역별 배치 슬롯(초기 각 1 = 총 3, 보유 8 > 슬롯). 직군 맞는 슬롯에만 배치, `CanPlace`/`TryPlace`/`Unplace`/`PlacedCountFor`/`Placed`. 세이브 복원 시 슬롯 초과 배치는 방어적 무시
+    - `ApprenticeOfflineAutomation : IOfflineAutomation` — **★ FixedOfflineAutomation 교체**. 배치 정원사 유효효율 합 → GardenHarvestRate(1.0 캡), 배치 점원 → ShopSalesRate(효율×0.5=온라인 상점 기준). **배치 0명 직군은 처리율 0** — 견습생 없으면 오프라인 자동화 없음. `OfflineSettlement` 코어·세이브는 무변경(인터페이스만 교체)
+  - **코어 배선**: `GameSession`에 `ApprenticeRoster Roster` 소유 + 복원/기록. 세이브 **v5**(`SaveData.ApprenticeEntry` 목록 — id·직군·희귀도·4스탯·레벨·경험치·배치, `CurrentVersion` 4→5, `SaveMigrator` case 4: 빈 목록. 일반 8명 시딩은 어댑터가 SO에서 — 목록 비면 채움)
+  - **데이터** (`Assets/Scripts/Data`): `ApprenticeData`에 `displayEmoji`(직군 이모지)·`mapSprite`(A04 도트 스프라이트 스왑 지점 — 코드 하드코딩 금지, SO 필드) 추가
+  - **어댑터 신규** (`Assets/Scripts`, ns `WizardGarden`): `ApprenticeUnit`(맵 유닛 MonoBehaviour — 색 사각형+직군 이모지+이름표+작업/운반 말풍선, `ApprenticeAgent` 감쌈, 소팅오더 20. 스프라이트 있으면 스왑) · `ApprenticeRosterWindow`(uGUI 코드생성 — 보유 나열·배치/해제·각성 버튼·슬롯 사용 헤더, sortingOrder 112. 유닛 클릭도 이 창=상태 보기)
+  - **MapScreen 통합**: `apprenticeOptions`(8명 SO) 필드 · Start에서 로스터 시딩·유닛 스폰 · Update에서 `DriveApprentices`(Idle→직군 브레인 결정→월드좌표 이동 지시→Tick→완료 시 `ExecuteWork`로 실제 수확/가공/진열, +경험치) · **게시판 스테이션**(📋 `MapTile.Kind.Board`, 정원 위) 클릭→관리 창 · 유닛 클릭→관리 창 · `RunOfflineSettlement`이 `ApprenticeOfflineAutomation(Roster.Placed)` 사용 · 배치/해제/각성 시 유닛 재생성. 유닛 대기(집) 좌표 = 정원사(-4.4,-3.05)/연금술사(1.4,0.6)/점원(1.7,-2.2), 작업 대상은 기존 `GardenTileWorldPosition`/`BenchWorldPosition`/`ShopSlotWorldPosition` 재사용
+  - **에디터**: `SampleDataBootstrap`에 견습생 8명 생성(`Assets/Data/Apprentices`, 봄이/묵묵/꽃분이=정원사, 글림/포포/린=연금술사, 잠보/씨드=점원. 스탯 총합 10~15=일반 등급, 주 스탯 최고. 메뉴 **Create Sample Data (S07)** 확장) · `MapSceneBootstrap`에 `apprenticeOptions` 배선(**Setup Map Scene (S04b)**)
+  - 검증: 컴파일 에러/경고 0 · EditMode **283/283**(기존 234 + 신규 49: State 8·Efficiency 6·Agent 6·JobLogic 10·Roster 8·OfflineAutomation 7·SaveMigrationV5 4. `SaveMigrationV3/V4Tests`의 CurrentVersion 리터럴 테스트 v5 대응 갱신) · **플레이 모드 스모크**(스크린샷 `Captures/S09_1~5_*.png`, git 미추적): 정원사 봄이 배치 → **유닛이 밭으로 걸어가 수확하는 걸 실제 확인**(인벤 불꽃풀 0→12 climbing, 슬롯 자동 재파종, 봄이 Lv1→3·친화력 5→7 성장) · **배치 0명 → 유닛 0·인벤 불변(자동화 없음)** · 3직군 전부 배치 시 정원사 수확·연금술사 작업대 가공(마른화염잎 70%)·점원 진열 3/3+판매(골드10) 동시 동작 · **오프라인 정산 견습생 기반 검증**: 0명 배치→수확0/골드0, 정원사+점원 배치→gardenRate 0.72·salesRate 0.6, 8h 오프라인 16588수확·10368판매·10368골드. 스모크 세이브는 백업 후 원복(잔여 `.s09smoke*` 백업 파일은 무해 — save.json만 로드)
+  - **S09b 분리 없음** — In 범위(유닛 행동·3직군·배치·스탯/효율·오프라인 교체·8명·레벨/각성·세이브) 전량 구현. 완료 기준(배치→유닛 걸어다니며 수확 눈에 보임 + 배치 유무로 처리량 다름 + 오프라인 견습생 기반) 충족
+
 - **S08 — 방치/오프라인 정산 (M3)** (2026-07-24)
   - 순수 C# 코어 신규 (`Assets/Scripts/Core`, ns `WizardGarden.Core`, MonoBehaviour 비의존 — EditMode 테스트):
     - `OfflineSettlement` — 정산 오케스트레이터. **유효 자원초 = min(raw, 캡 28800s=8h) × 효율 0.6** (기획서 22장). `EffectiveResourceSeconds(raw)`·`WasCapped(raw)` 순수 계산 + `Settle(clock, garden, inventory, shop, wallet, raw, growthOf, priceOf, goldModifier)` 오케스트레이션. **사건 시간(EventSeconds) 미변경** — `GameClock.AddResourceSeconds`만 호출 → 계절·날씨·VIP·모험은 오프라인 정지(기획서 22장 "정지된 것"). 캡·효율은 생성자 주입(테스트 커스텀 가능)
@@ -131,7 +147,14 @@
   - 완료 기준 대비: 폴더/스키마/컨벤션 기록 ✅ · 컴파일 클린 ✅ (dotnet 교차 빌드 0에러/0경고 + Editor.log에서 Unity 컴파일 성공 확인) · 샘플 SO 에셋 ✅ (2026-07-22 MCP 연결 후 부트스트랩 실행 — 5종 생성·값 검증·EditMode 테스트 6/6 통과)
 
 ## 세션 간 인계 메모
-- (S08→S09) **★ 임시 자동화 상수 교체 지점 = `FixedOfflineAutomation`** (`Assets/Scripts/Core/IOfflineAutomation.cs`). 정산 로직(`OfflineSettlement`)은 `IOfflineAutomation` 인터페이스(`GardenHarvestRate`·`ShopSalesRate`)에만 의존하므로, S09는 이 인터페이스를 **배치된 견습생 스탯 기반 구현으로 갈아끼우기만** 하면 된다(정산 로직·세이브 무변경). 인스턴스화는 `MapScreen.RunOfflineSettlement()` 한 곳(`new FixedOfflineAutomation()`) — 여기서 S09 구현으로 교체. 현재 baseline 값: 정원 수확 배율 1.0(성장 완료마다 자동 수확)·상점 판매 0.5개/초(온라인 상점 처리량과 동일). **공방 자동 가공(연금술사)은 S08 미구현** — 3직군(정원사/연금술사/점원) 실자동화는 S09가 인터페이스를 확장해 채운다(기획서 10장). S09가 자동화를 붙이면 온라인 초당 생산 곡선도 실측 재검증(S07 인계와 연동)
+- (S09→S10) **패시브·영입·장비 루프가 S10 몫**: `ApprenticeData.passiveIds`(문자열 목록)는 이미 있으나 패시브 데이터 테이블(SO)·효과 적용은 미구현. 영입 경로(마법학교/소문/모험/별빛)도 없음 — S09는 **일반 8명을 처음부터 보유**로 시딩(어댑터 `MapScreen.SetupApprentices`가 SO에서 `Roster.AddIfMissing`). S10이 영입을 붙이면 시딩 대신 영입 경로로 바꾸거나 병행. 장비(자기소비 루프 — 포션을 견습생에 사용, 기획서 12장)도 S10/이후. 각성은 구현됨(관리 창 "각성" 버튼, 10레벨+전설미만)
+- (S09→S10/밸런스) **배치 슬롯 확장 미구현**: `ApprenticeRoster.InitialSlotsPerJob = 1`(총 3), 확장 API 없음(슬롯 늘리려면 `_slots` 딕셔너리 값 증가 로직 추가). 기획서 13장 "중반 각2/후반 각3, 최대 9명+모험2"는 이후 세션. 현재 보유 8 > 슬롯 3이라 "누구를 배치할지" 선택은 성립
+- (S09→S10) **패시브 슬롯 UI 없음**: 관리 창(`ApprenticeRosterWindow`)은 배치/해제/각성만. 패시브·장비 표시는 S10이 창을 확장하거나 상세 창 신설
+- (S09→A04) **유닛/초상 아트 스왑 지점**: 맵 유닛은 `ApprenticeUnit.Configure`가 `ApprenticeData.mapSprite`(있으면 스프라이트, 없으면 색+이모지). A04가 22명 도트 스프라이트를 만들어 각 SO의 `mapSprite`에 연결하면 자동 스왑(코드 무변경). 초상(대화용 160px)은 스토리 세션(S16) 전제 — SO에 초상 필드는 아직 없음(필요 시 A04/S16이 추가). 봄이 스프라이트는 A01에 있음(`Assets/Art/Characters/Bomi`) — A04가 연결
+- (S09→S11/자동화 재검증) **온라인 초당 생산 곡선 실측 대상 생김**: S07 인계 "값 사다리는 완비, 곡선 실현은 자동화 몫"이 이제 견습생으로 구현됨. 정원사 1명(효율 0.6×스탯) + 연금술사 + 점원의 실제 처리량을 기획서 8장 곡선과 대조 재검증할 것(현재 스모크는 기능 검증만 — 밸런스 튜닝은 재미 판정 후). 작업 기본 시간(수확 1.4s 등)·스탯 가중(0.04)·이동속도(2.2 base)는 튜닝값
+- (S09→S11) **연금술사 오프라인 미반영**: `IOfflineAutomation`은 정원(수확)·상점(판매)만 — 공방 자동 가공의 오프라인 처리는 미구현(온라인은 동작). 오프라인에 가공까지 넣으려면 인터페이스에 공방 처리율 추가 + `OfflineSettlement`에 채널 C 확장 필요. 현재는 "오프라인엔 정원사·점원만 일한 셈"
+- (S09) **정원사 자동 재파종 = 기본 종자(첫 티어1 해금 종자, 불꽃풀)**: 빈 밭을 채워 정원을 계속 가동. 플레이어가 티어2+를 심어둔 밭은 수확 후 기본 종자로 재파종됨(의도된 단순화 — "밭 지정 작물" 기능은 이후). 튜닝/개선 여지
+- (S08→S09) **★ 임시 자동화 상수 교체 지점 = `FixedOfflineAutomation`** [S09에서 교체 완료 — `ApprenticeOfflineAutomation`으로. `FixedOfflineAutomation` 클래스·상수는 테스트/기준값으로 유지] (`Assets/Scripts/Core/IOfflineAutomation.cs`). 정산 로직(`OfflineSettlement`)은 `IOfflineAutomation` 인터페이스(`GardenHarvestRate`·`ShopSalesRate`)에만 의존하므로, S09는 이 인터페이스를 **배치된 견습생 스탯 기반 구현으로 갈아끼우기만** 하면 된다(정산 로직·세이브 무변경). 인스턴스화는 `MapScreen.RunOfflineSettlement()` 한 곳(`new FixedOfflineAutomation()`) — 여기서 S09 구현으로 교체. 현재 baseline 값: 정원 수확 배율 1.0(성장 완료마다 자동 수확)·상점 판매 0.5개/초(온라인 상점 처리량과 동일). **공방 자동 가공(연금술사)은 S08 미구현** — 3직군(정원사/연금술사/점원) 실자동화는 S09가 인터페이스를 확장해 채운다(기획서 10장). S09가 자동화를 붙이면 온라인 초당 생산 곡선도 실측 재검증(S07 인계와 연동)
 - (S08→S09) **오프라인 vs 온라인 자동화 일원화 권장**: S08은 오프라인 정산 전용 자동화만 구현(온라인 중엔 여전히 클릭 수동). S09가 견습생 유닛을 실시간 tick으로 만들면, 오프라인 정산의 `IOfflineAutomation`도 같은 견습생 배치에서 파생하도록 통합할 것(오프라인 = "그동안 견습생이 일한 결과"). 정산 2채널(진열 재고 판매 / 정원 수확→자동 판매) 구조는 유지하되 처리율만 견습생 기반으로
 - (S08→S11) **정산은 사건 시간을 건드리지 않음(설계 확정)**: `OfflineSettlement.Settle`은 `GameClock.AddResourceSeconds`만 호출하고 `EventSeconds`는 절대 증가 안 시킴 → 계절·날씨·VIP·모험은 오프라인 정지가 보장됨. S11이 계절/날씨를 사건 시간(EventSeconds/DayIndex) 위에 얹으면 별도 처리 없이 "오프라인엔 계절 정지"가 성립. 복귀 요약 패널의 "여전히 봄" 문구는 현재 하드코딩(계절 시스템 전) — S11이 실제 계절을 넣으면 `MapScreen.BuildOfflineSummaryText`에서 현재 계절명으로 교체하고 "정지된 모험 남은시간" 등 실제 정지 상태를 추가할 것
 - (S08) **8시간 캡의 의미 = 오프라인 지속 상한**: 유효초 = min(raw, 28800) × 0.6. 즉 8시간을 넘게 비워도 최대 8시간분(× 효율 60% = 4.8시간분 자원초)만 적립. 정확히 8시간(raw=28800)은 캡 경계라 `WasCapped=false`(전량 적립), 초과분만 `WasCapped=true`로 "8시간까지만 정산됨" 안내. 캡·효율은 `OfflineSettlement` 생성자 인자라 밸런스 조정은 상수(`DefaultCapSeconds`/`DefaultEfficiency`)만 수정
@@ -177,6 +200,12 @@
 - (S03→S04) 심기 가능한 종자 목록·growthSeconds 조회는 `GardenScreen.seedOptions`(인스펙터 SO 참조)가 유일한 소스. 세이브에 있는데 목록에 없는 식물 id는 경고 후 즉시 수확 가능 처리(세이브 잠김 방지)
 
 ## 개발 중 바뀐 결정
+- (S09) **유닛 = 순수 상태기계(운동학) + 어댑터(결정·게임효과) 분리**. `ApprenticeAgent`는 "어디로 가서 몇 초 일하고 복귀"만 알고(무엇을·왜는 모름), 직군 브레인(`ApprenticeJobLogic`, 순수)이 실제 Garden/Shop/Workshop 상태로 다음 작업을 고르고, MapScreen(어댑터)이 대상 인덱스를 월드 좌표로 바꿔 유닛을 보낸 뒤 **작업 완료 순간** 실제 게임 효과(수확·가공·진열)를 실행. 이래야 상태기계·브레인 둘 다 EditMode 테스트 가능(브레인은 실제 코어 객체로, 에이전트는 dt 틱으로)
+- (S09) **오프라인 정산은 인터페이스만 교체(코어·세이브 무변경)** — `OfflineSettlement`/2채널 구조 그대로, `IOfflineAutomation` 구현만 `FixedOfflineAutomation`→`ApprenticeOfflineAutomation`. 처리율을 배치 견습생 유효효율 합에서 파생, **0명=0**. 채널 A(이미 진열된 재고를 손님이 구매)는 인터페이스 밖이라 유지되지만, 미리 진열해둔 재고에만 작동(플레이어가 남긴 것) — "견습생 없으면 새 자동 생산·수확 없음"은 성립
+- (S09) **레벨업 = 주 스탯 +1 결정적** — 기획서 12장 "스탯 +1 (랜덤 +2 1개)"에서 랜덤 요소·5레벨 스킬슬롯은 결정성·테스트 위해 단순화(주 스탯만 +1). 경험치 곡선 `10×레벨`(임시). 각성은 10레벨+전설미만에서 희귀도 1단계↑(기획서 10장 "일반도 영웅까지"). XP는 작업 1회 완료당 +6(튜닝값)
+- (S09) **스탯 저장 = 현재값 직접 저장** — SO는 불변 기본값, 런타임 상태(레벨업으로 오른 현재 스탯·희귀도·경험치·배치)는 세이브에 현재값을 그대로 남긴다. 로드 시 SO 없이 복원되고, id로 SO를 매칭해 이름·스프라이트만 표시. 세이브 스키마가 SO 밸런스 변경과 독립
+- (S09) **일반 8명은 처음부터 보유(영입 전)** — 영입 경로(S10)가 아직 없어 `MapScreen.SetupApprentices`가 8 SO를 `Roster.AddIfMissing`로 시딩(미배치). 세이브에 있으면 기존 상태 유지, 없으면(신규/마이그레이션) 추가. S10이 영입을 붙이면 이 시딩을 대체/축소
+- (S09) **배치 UI = 맵 게시판(📋) 스테이션 + 관리 창** — 가마솥/도감처럼 별도 스테이션(`MapTile.Kind.Board`, 정원 위)을 신설해 배치/해제/각성. 유닛 직접 클릭도 같은 창(상태 보기 겸용). 구역 클릭(밭=심기/수확)과 배치 조작이 얽히지 않게 분리
 - (S08) **정산 유효초 공식 = min(raw, 캡) × 효율** (캡을 raw에, 효율을 그 뒤에) — 기획서 22장 "8시간 캡, 효율 60%"를 "최대 8시간분을 60% 효율로 적립"으로 해석. 8시간분 자원초(28800) × 0.6 = 17280 자원초가 상한. 대안(효율 먼저→캡)은 캡의 의미가 흐려져 채택 안 함
 - (S08) **오프라인 골드/수확 = 임시 자동화 상수 기반, 인터페이스로 격리** — 견습생(S09)이 없어 실제 자동 작업 주체가 없으므로, `IOfflineAutomation`(구역별 처리율)을 stand-in으로 두고 `FixedOfflineAutomation`(고정값)으로 정산. **정산 로직은 인터페이스에만 의존** → S09가 견습생 기반 구현으로 교체 시 코어·세이브 무변경. 값은 근거 있는 baseline(정원 수확 배율 1.0·상점 판매 0.5개/초=온라인 상점과 동일)이라 기획서 22장 "8시간 시나리오"가 tier1 작물 기준 수만 골드/수확으로 재현됨
 - (S08) **수확분은 보관함 + 자동 판매 병행** (기획서 22장 "식물 자라서 보관함 가득" + "직원이 자동 작업으로 골드 누적" 양쪽 충족): 정원 자동 수확분을 인벤토리에 적재하되, 상점 판매율 상한만큼은 자동 판매해 골드로. 나머지는 보관함에 남김. 자동 수확 슬롯은 **같은 작물로 재파종**(빈 밭로 남기면 복귀 UX 나쁨)

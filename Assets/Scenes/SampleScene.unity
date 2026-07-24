@@ -357,6 +357,15 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 27154c7a7b577424aa7f6c17693efac6, type: 2}
   - {fileID: 11400000, guid: 6bdae2042da744846920df9aa5f36fd2, type: 2}
   - {fileID: 11400000, guid: 264735c7ca48a314ca14d77a8d238fab, type: 2}
+  apprenticeOptions:
+  - {fileID: 11400000, guid: 510e1f274e5a7414c9b5328e1c729bbb, type: 2}
+  - {fileID: 11400000, guid: c3a24d9dab1dc7b418dc71221ec95ae1, type: 2}
+  - {fileID: 11400000, guid: 12e8eb8505e7e844ab892128f96a5f2e, type: 2}
+  - {fileID: 11400000, guid: 569136ec257733a4692ff6a317b73c15, type: 2}
+  - {fileID: 11400000, guid: ac66c4b8d4229304da9e8eeb7f1ff396, type: 2}
+  - {fileID: 11400000, guid: ddfb67fcd64c58747a47198ba17cdf82, type: 2}
+  - {fileID: 11400000, guid: 5d6c5c0811239ee49892ac7302dcab32, type: 2}
+  - {fileID: 11400000, guid: 226caa012f12421458dcd0b20ff103c2, type: 2}
   art:
     ground: {fileID: 21300000, guid: 60bd741cf1fc1964a979da9b054f5de1, type: 3}
     gardenPlot: {fileID: 21300000, guid: 488d95efabee671468f2712d651c2796, type: 3}

@@ -18,6 +18,7 @@ namespace WizardGarden.EditorTools
         private const string PlantFolder = "Assets/Data/Plants";
         private const string PotionFolder = "Assets/Data/Potions";
         private const string MaterialFolder = "Assets/Data/Materials";
+        private const string ApprenticeFolder = "Assets/Data/Apprentices";
 
         // 티어별 해금가 (식물 1종당 — 4종 전부 해금 시 이 값 ×4가 "티어 도약 비용" = 이전 티어 누적수입 × 0.1, 기획서 8장).
         // S07 경제 검증 튜닝값 (4종합을 각 티어 도달 시점 누적골드의 ~10%에 맞춤 — PROGRESS.md 대조표).
@@ -38,14 +39,54 @@ namespace WizardGarden.EditorTools
             EnsureFolder(PlantFolder);
             EnsureFolder(PotionFolder);
             EnsureFolder(MaterialFolder);
+            EnsureFolder(ApprenticeFolder);
 
             CreatePlants();
             CreateMaterials();
             CreatePotions();
+            CreateApprentices();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[S07] 전체 콘텐츠 생성 완료 — 식물 20종 + 재료 15종 + 포션 30종 + 부산물 3종");
+            Debug.Log("[S07/S09] 전체 콘텐츠 생성 완료 — 식물 20 + 재료 15 + 포션 30 + 부산물 3 + 견습생 8종");
+        }
+
+        // ---- 일반 견습생 8명 (기획서 14장 — 직군 클리셰. 스탯 총합 10~15 = 일반 등급 가이드) ----
+
+        static void CreateApprentices()
+        {
+            // 🌱 정원사 (주 스탯 친화력) — 봄이=튜토리얼 신입(약간 낮음)
+            CreateApprentice("Apprentice_Bomi", "appr_bomi", "봄이", Job.Gardener, "🌱", 5, 2, 2, 2);
+            CreateApprentice("Apprentice_Mukmuk", "appr_mukmuk", "묵묵", Job.Gardener, "🌱", 6, 2, 2, 3);
+            CreateApprentice("Apprentice_Kkotbuni", "appr_kkotbuni", "꽃분이", Job.Gardener, "🌱", 5, 3, 3, 3);
+
+            // ⚗️ 연금술사 (주 스탯 마력) — 포포=덜렁이(약간 낮음)
+            CreateApprentice("Apprentice_Glim", "appr_glim", "글림", Job.Alchemist, "⚗️", 2, 6, 3, 2);
+            CreateApprentice("Apprentice_Popo", "appr_popo", "포포", Job.Alchemist, "⚗️", 3, 4, 2, 2);
+            CreateApprentice("Apprentice_Rin", "appr_rin", "린", Job.Alchemist, "⚗️", 3, 5, 2, 4);
+
+            // 🏪 점원 (주 스탯 상술) — 잠보=친화력 높음, 씨드=어린이(약간 낮음)
+            CreateApprentice("Apprentice_Jambo", "appr_jambo", "잠보", Job.Clerk, "🏪", 5, 2, 5, 2);
+            CreateApprentice("Apprentice_Seed", "appr_seed", "씨드", Job.Clerk, "🏪", 3, 2, 4, 3);
+        }
+
+        static void CreateApprentice(string assetName, string id, string displayName,
+            Job job, string displayEmoji, int affinity, int magic, int trade, int luck)
+        {
+            string path = $"{ApprenticeFolder}/{assetName}.asset";
+            var apprentice = LoadOrCreate<ApprenticeData>(path);
+            apprentice.id = id;
+            apprentice.displayName = displayName;
+            apprentice.job = job;
+            apprentice.rarity = Rarity.Common;
+            apprentice.affinity = affinity;
+            apprentice.magic = magic;
+            apprentice.trade = trade;
+            apprentice.luck = luck;
+            apprentice.displayEmoji = displayEmoji;
+            if (apprentice.passiveIds == null)
+                apprentice.passiveIds = new List<string>();
+            EditorUtility.SetDirty(apprentice);
         }
 
         // ---- 식물 20종 (기획서 4장: 티어1~5 × 4계열) ----

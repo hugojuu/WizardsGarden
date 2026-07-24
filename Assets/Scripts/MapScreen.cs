@@ -33,6 +33,9 @@ namespace WizardGarden
         [Tooltip("실패 부산물 3종 (탁한 포션/수상한 침전물/희뿌연 안개병 — 실험 일지)")]
         public List<PotionData> byproductOptions = new List<PotionData>();
 
+        [Tooltip("견습생 (일반 8명 — ApprenticeData SO 참조, S09)")]
+        public List<ApprenticeData> apprenticeOptions = new List<ApprenticeData>();
+
         [Tooltip("맵 아트 (A02 — 비어 있으면 색 사각형 플레이스홀더로 동작)")]
         public MapArtSet art = new MapArtSet();
 
@@ -48,6 +51,19 @@ namespace WizardGarden
         static readonly Vector2 CustomerSpot = new Vector2(1.6f, -3.35f); // 상점 앞 통로 (텍스트 겹침 없는 위치)
         static readonly Vector2 CauldronCenter = new Vector2(0.1f, 1.6f);  // 상단 중앙 빈 공간 (정원·공방 사이)
         static readonly Vector2 CodexCenter = new Vector2(0.1f, 3.55f);
+        static readonly Vector2 BoardCenter = new Vector2(-4.4f, 3.6f);    // 정원 위 — 견습생 관리 게시판 (S09)
+
+        // 견습생 유닛 대기(집) 지점 — 배치된 구역별 (S09, 좌표 규약)
+        static readonly Vector2 GardenerHome = new Vector2(-4.4f, -3.05f);
+        static readonly Vector2 AlchemistHome = new Vector2(1.4f, 0.6f);
+        static readonly Vector2 ClerkHome = new Vector2(1.7f, -2.2f);
+
+        // 유닛 작업 1회 기본 소요(초) — 효율/스탯으로 나눠 가속 (ApprenticeEfficiency.WorkSeconds)
+        const double HarvestWorkSeconds = 1.4;
+        const double PlantWorkSeconds = 1.0;
+        const double ProcessWorkSeconds = 1.0;
+        const double DisplayWorkSeconds = 1.2;
+        const int WorkExperience = 6;   // 작업 1회 완료당 경험치
 
         GameSession _session;
         Camera _camera;
@@ -62,6 +78,15 @@ namespace WizardGarden
         BrewWindow _brewWindow;
         CodexWindow _codexWindow;
         OfflineSummaryWindow _offlineSummary;
+
+        // S09 견습생
+        ApprenticeRosterWindow _rosterWindow;
+        readonly Dictionary<string, ApprenticeData> _apprenticeDataById = new Dictionary<string, ApprenticeData>(System.StringComparer.Ordinal);
+        readonly List<ApprenticeUnit> _units = new List<ApprenticeUnit>();
+        readonly List<SimpleRecipe> _autoRecipes = new List<SimpleRecipe>();
+        readonly List<ApprenticeRosterWindow.Row> _rosterRowBuffer = new List<ApprenticeRosterWindow.Row>();
+        Transform _unitsRoot;
+        string _preferredSeedId;
         CodexWindow.Page _codexPage = CodexWindow.Page.Potions;
         string _brewResultText = "";
 
@@ -173,6 +198,14 @@ namespace WizardGarden
             _offlineSummary = new GameObject("OfflineSummaryWindow").AddComponent<OfflineSummaryWindow>();
             _offlineSummary.transform.SetParent(transform, false);
 
+            _rosterWindow = new GameObject("ApprenticeRosterWindow").AddComponent<ApprenticeRosterWindow>();
+            _rosterWindow.transform.SetParent(transform, false);
+
+            _unitsRoot = new GameObject("ApprenticeUnits").transform;
+            _unitsRoot.SetParent(transform, false);
+
+            SetupApprentices();
+
             GameScreen debugScreen = Object.FindFirstObjectByType<GameScreen>(FindObjectsInactive.Include);
             _debugScreenGo = debugScreen != null ? debugScreen.gameObject : null;
 
@@ -273,8 +306,9 @@ namespace WizardGarden
             if (raw <= 0.0)
                 return null;
 
-            // ★ 임시 자동화 상수 — S09 견습생 시스템이 FixedOfflineAutomation을 교체한다.
-            var automation = new Core.FixedOfflineAutomation();
+            // ★ S09 — 배치된 견습생 기반 자동화 (FixedOfflineAutomation 교체).
+            //    배치된 정원사/점원이 없으면 처리율 0 → 오프라인 자동 수확·판매 없음.
+            var automation = new Core.ApprenticeOfflineAutomation(_session.Roster.Placed);
             var settlement = new Core.OfflineSettlement(automation);
             Core.OfflineSettlementResult result = settlement.Settle(
                 _session.Clock, _session.Garden, _session.Inventory, _session.Shop, _session.Wallet,
@@ -331,6 +365,7 @@ namespace WizardGarden
             }
 
             HandleInput();
+            DriveApprentices(now, Time.deltaTime);
             RefreshGardenTiles(now);
             RefreshBench(now);
             RefreshStands();
@@ -380,6 +415,14 @@ namespace WizardGarden
             if (hit == null)
                 return false;
 
+            // 견습생 유닛 클릭 = 상태 보기(관리 창) — MapTile보다 먼저 판정.
+            ApprenticeUnit unit = hit.GetComponentInParent<ApprenticeUnit>();
+            if (unit != null)
+            {
+                OpenRosterWindow();
+                return true;
+            }
+
             MapTile tile = hit.GetComponentInParent<MapTile>();
             if (tile == null)
                 return false;
@@ -401,6 +444,9 @@ namespace WizardGarden
                 case MapTile.Kind.Codex:
                     OpenCodexWindow();
                     return true;
+                case MapTile.Kind.Board:
+                    OpenRosterWindow();
+                    return true;
                 default:
                     return false;
             }
@@ -410,7 +456,8 @@ namespace WizardGarden
             (_popup != null && _popup.IsOpen)
             || (_brewWindow != null && _brewWindow.IsOpen)
             || (_codexWindow != null && _codexWindow.IsOpen)
-            || (_offlineSummary != null && _offlineSummary.IsOpen);
+            || (_offlineSummary != null && _offlineSummary.IsOpen)
+            || (_rosterWindow != null && _rosterWindow.IsOpen);
 
         long ApplyCodexGoldBonus(long gold) => _codex != null ? _codex.ApplyGoldBonus(gold) : gold;
 
@@ -1198,6 +1245,328 @@ namespace WizardGarden
             }
         }
 
+        // ---- S09 견습생 (배치 → 유닛이 걸어다니며 자동 작업) ----
+
+        void SetupApprentices()
+        {
+            _apprenticeDataById.Clear();
+            foreach (ApprenticeData data in apprenticeOptions)
+            {
+                if (data == null || string.IsNullOrEmpty(data.id))
+                    continue;
+                _apprenticeDataById[data.id] = data;
+                // 일반 8명 시딩 — 세이브에 없으면 보유로 추가(미배치). 있으면 기존 상태(레벨·배치) 유지.
+                if (!_session.Roster.Contains(data.id))
+                    _session.Roster.AddIfMissing(new ApprenticeState(
+                        data.id, data.job, data.rarity, data.affinity, data.magic, data.trade, data.luck));
+            }
+
+            BuildAutoRecipes();
+            _preferredSeedId = FindPreferredSeedId();
+            RebuildUnits();
+        }
+
+        // 연금술사 자동 가공 대상 = 단일 입력 가공만 (다중 입력 정수·시간모래·무지개는 수동 유지).
+        void BuildAutoRecipes()
+        {
+            _autoRecipes.Clear();
+            foreach (MaterialData material in recipeOptions)
+            {
+                if (material == null || material.sourceItem == null || material.sourceCount <= 0)
+                    continue;
+                if (material.extraInputs != null && material.extraInputs.Count > 0)
+                    continue;
+                _autoRecipes.Add(new SimpleRecipe(material.id, material.sourceItem.id, material.sourceCount));
+            }
+        }
+
+        // 정원사 재파종용 기본 종자 = 처음부터 해금된 첫 티어1 종자.
+        string FindPreferredSeedId()
+        {
+            foreach (PlantData plant in seedOptions)
+                if (plant != null && !string.IsNullOrEmpty(plant.id) && !IsSeedLocked(plant))
+                    return plant.id;
+            return null;
+        }
+
+        // 배치된 견습생만큼 유닛을 (재)생성 — 배치/해제/각성 후 호출.
+        void RebuildUnits()
+        {
+            for (int i = _units.Count - 1; i >= 0; i--)
+                if (_units[i] != null)
+                    Destroy(_units[i].gameObject);
+            _units.Clear();
+
+            foreach (ApprenticeState state in _session.Roster.Placed)
+            {
+                _apprenticeDataById.TryGetValue(state.Id, out ApprenticeData data);
+                var go = new GameObject($"Unit_{state.Id}");
+                go.transform.SetParent(_unitsRoot, false);
+                var unit = go.AddComponent<ApprenticeUnit>();
+                unit.Configure(state, data);
+                Vector2 home = HomeFor(state.Job);
+                unit.Agent.SetHome(home.x, home.y);
+                unit.Agent.MoveSpeed = ApprenticeEfficiency.MoveSpeed(state);
+                unit.SyncTransform();
+                _units.Add(unit);
+            }
+        }
+
+        static Vector2 HomeFor(Job job)
+        {
+            switch (job)
+            {
+                case Job.Gardener: return GardenerHome;
+                case Job.Alchemist: return AlchemistHome;
+                case Job.Clerk: return ClerkHome;
+                default: return Vector2.zero;
+            }
+        }
+
+        // 매 프레임 유닛 구동 — Idle이면 다음 작업 결정·지시, 이동/작업 tick, 완료 순간 게임 효과 실행.
+        void DriveApprentices(double now, float dt)
+        {
+            for (int i = 0; i < _units.Count; i++)
+            {
+                ApprenticeUnit unit = _units[i];
+                if (unit == null)
+                    continue;
+                ApprenticeState state = _session.Roster.Get(unit.ApprenticeId);
+                if (state == null || !state.IsPlaced)
+                    continue;
+
+                if (unit.Agent.IsIdle)
+                {
+                    WorkOrder order = DecideWork(state, now);
+                    if (order.HasWork)
+                    {
+                        Vector3 target = WorldForOrder(order);
+                        double workSeconds = ApprenticeEfficiency.WorkSeconds(BaseWorkSeconds(order.Kind), state);
+                        unit.PendingOrder = order;
+                        unit.Agent.Assign(target.x, target.y, workSeconds);
+                    }
+                }
+
+                if (unit.Agent.Tick(dt))
+                    ExecuteWork(state, unit.PendingOrder, now);
+
+                unit.SyncTransform();
+            }
+        }
+
+        WorkOrder DecideWork(ApprenticeState state, double now)
+        {
+            switch (state.Job)
+            {
+                case Job.Gardener:
+                    return ApprenticeJobLogic.DecideGardener(_session.Garden, now, GetGrowthSeconds, _preferredSeedId);
+                case Job.Alchemist:
+                    return ApprenticeJobLogic.DecideAlchemist(_session.Workshop, _session.Inventory, now,
+                        GetProcessingSeconds, _autoRecipes);
+                case Job.Clerk:
+                    return ApprenticeJobLogic.DecideClerk(_session.Shop, _session.Inventory, ResolvePrice);
+                default:
+                    return WorkOrder.None;
+            }
+        }
+
+        static double BaseWorkSeconds(WorkKind kind)
+        {
+            switch (kind)
+            {
+                case WorkKind.Harvest: return HarvestWorkSeconds;
+                case WorkKind.Plant: return PlantWorkSeconds;
+                case WorkKind.StartProcess:
+                case WorkKind.Collect: return ProcessWorkSeconds;
+                case WorkKind.Display: return DisplayWorkSeconds;
+                default: return 1.0;
+            }
+        }
+
+        Vector3 WorldForOrder(WorkOrder order)
+        {
+            switch (order.Kind)
+            {
+                case WorkKind.Harvest:
+                case WorkKind.Plant:
+                    return GardenTileWorldPosition(order.Index);
+                case WorkKind.StartProcess:
+                case WorkKind.Collect:
+                    return BenchWorldPosition;
+                case WorkKind.Display:
+                    return ShopSlotWorldPosition(order.Index);
+                default:
+                    return Vector3.zero;
+            }
+        }
+
+        // 유닛이 작업을 마치는 순간 실제 게임 효과 실행 — 타일/작업대/진열대 갱신에 즉시 반영.
+        void ExecuteWork(ApprenticeState state, WorkOrder order, double now)
+        {
+            bool done = false;
+            switch (order.Kind)
+            {
+                case WorkKind.Harvest:
+                    if (order.Index >= 0 && order.Index < _session.Garden.SlotCount)
+                    {
+                        GardenSlot slot = _session.Garden.Slots[order.Index];
+                        if (!slot.IsEmpty)
+                            done = _session.TryHarvestToInventory(order.Index, GetGrowthSeconds(slot.PlantId));
+                    }
+                    break;
+                case WorkKind.Plant:
+                    done = _session.TryPlant(order.Index, order.ItemId);
+                    break;
+                case WorkKind.StartProcess:
+                    done = _session.Workshop.TryStart(order.ItemId, 1, order.InputId, order.InputCount,
+                        _session.Inventory, now);
+                    break;
+                case WorkKind.Collect:
+                    done = _session.Workshop.TryCollect(now, GetProcessingSeconds(_session.Workshop.OutputItemId),
+                        _session.Inventory, out _, out _);
+                    break;
+                case WorkKind.Display:
+                    done = _session.Shop.Display(order.Index, order.ItemId, order.Count, _session.Inventory) > 0;
+                    break;
+            }
+
+            if (done)
+                GrantExperience(state);
+        }
+
+        void GrantExperience(ApprenticeState state)
+        {
+            int levels = state.AddExperience(WorkExperience);
+            if (levels <= 0)
+                return;
+            Vector2 home = HomeFor(state.Job);
+            MapCustomerFx.Spawn(new Vector3(home.x, home.y + 0.95f, 0f),
+                $"⬆️ Lv.{state.Level}" + (state.CanAwaken ? " · 각성 가능!" : ""));
+            if (_rosterWindow != null && _rosterWindow.IsOpen)
+                RefreshRosterWindow();
+        }
+
+        // ---- 견습생 관리 창 (배치/해제/각성 + 상태 보기) ----
+
+        /// <summary>견습생 관리 창 열기 (게시판·유닛 클릭·스모크 테스트 공용 진입점).</summary>
+        public void OpenRosterWindow()
+        {
+            RefreshRosterWindow(open: true);
+        }
+
+        void RefreshRosterWindow(bool open = false)
+        {
+            if (_rosterWindow == null)
+                return;
+            BuildRosterRows();
+            string header = RosterHeader();
+            if (open)
+                _rosterWindow.Open(header, _rosterRowBuffer);
+            else
+                _rosterWindow.Render(header, _rosterRowBuffer);
+        }
+
+        string RosterHeader()
+        {
+            ApprenticeRoster r = _session.Roster;
+            return $"배치 슬롯 — 🌱정원 {r.PlacedCountFor(Job.Gardener)}/{r.SlotsFor(Job.Gardener)}"
+                + $"   ⚗️공방 {r.PlacedCountFor(Job.Alchemist)}/{r.SlotsFor(Job.Alchemist)}"
+                + $"   🏪상점 {r.PlacedCountFor(Job.Clerk)}/{r.SlotsFor(Job.Clerk)}";
+        }
+
+        void BuildRosterRows()
+        {
+            _rosterRowBuffer.Clear();
+            foreach (ApprenticeState a in _session.Roster.All)
+            {
+                string capturedId = a.Id;
+                _apprenticeDataById.TryGetValue(a.Id, out ApprenticeData data);
+                string name = data != null && !string.IsNullOrEmpty(data.displayName) ? data.displayName : a.Id;
+                string placed = a.IsPlaced ? "● 배치됨" : "○ 대기";
+                string label = $"{JobEmojiFor(a.Job)} {name} · {JobLabel(a.Job)} {RarityLabel(a.Rarity)} · Lv.{a.Level}"
+                    + $"  [친{a.Affinity}·마{a.Magic}·상{a.Trade}·운{a.Luck}]  {placed}";
+
+                bool actionEnabled = a.IsPlaced || _session.Roster.CanPlace(a);
+                string actionLabel = a.IsPlaced ? "해제" : "배치";
+
+                _rosterRowBuffer.Add(new ApprenticeRosterWindow.Row(
+                    label,
+                    JobRowColor(a.Job),
+                    actionLabel, actionEnabled,
+                    () => TogglePlacement(capturedId),
+                    a.CanAwaken, a.CanAwaken,
+                    () => AwakenApprentice(capturedId)));
+            }
+        }
+
+        /// <summary>배치/해제 토글 (스모크 테스트 공용) — 유닛 재생성.</summary>
+        public bool TogglePlacement(string id)
+        {
+            ApprenticeState a = _session.Roster.Get(id);
+            if (a == null)
+                return false;
+            bool changed = a.IsPlaced ? _session.Roster.Unplace(id) : _session.Roster.TryPlace(id);
+            if (!changed)
+                return false;
+            RebuildUnits();
+            RefreshRosterWindow();
+            return true;
+        }
+
+        void AwakenApprentice(string id)
+        {
+            ApprenticeState a = _session.Roster.Get(id);
+            if (a == null || !a.TryAwaken())
+                return;
+            RefreshRosterWindow();
+            RebuildUnits();
+        }
+
+        static string JobLabel(Job job)
+        {
+            switch (job)
+            {
+                case Job.Gardener: return "정원사";
+                case Job.Alchemist: return "연금술사";
+                case Job.Clerk: return "점원";
+                default: return "?";
+            }
+        }
+
+        static string JobEmojiFor(Job job)
+        {
+            switch (job)
+            {
+                case Job.Gardener: return "🌱";
+                case Job.Alchemist: return "⚗️";
+                case Job.Clerk: return "🏪";
+                default: return "🧑";
+            }
+        }
+
+        static Color JobRowColor(Job job)
+        {
+            switch (job)
+            {
+                case Job.Gardener: return new Color(0.20f, 0.30f, 0.18f);
+                case Job.Alchemist: return new Color(0.26f, 0.20f, 0.32f);
+                case Job.Clerk: return new Color(0.34f, 0.26f, 0.14f);
+                default: return PlaceholderPalette.PanelBackground;
+            }
+        }
+
+        static string RarityLabel(Rarity rarity)
+        {
+            switch (rarity)
+            {
+                case Rarity.Common: return "일반";
+                case Rarity.Rare: return "희귀";
+                case Rarity.Epic: return "영웅";
+                case Rarity.Legendary: return "전설";
+                default: return "?";
+            }
+        }
+
         // ---- 맵 생성 (플레이스홀더 — 색 사각형 + 이모지/한글 라벨) ----
 
         void SetupCamera()
@@ -1226,7 +1595,26 @@ namespace WizardGarden
             BuildWorkshopZone();
             BuildBreweryZone();
             BuildShopZone();
+            BuildBoardZone();
             BuildProps();
+        }
+
+        // 견습생 관리 게시판 (S09) — 정원 위. 클릭 → 배치/해제 창.
+        void BuildBoardZone()
+        {
+            var boardGo = new GameObject("ApprenticeBoard");
+            boardGo.transform.SetParent(transform, false);
+            boardGo.transform.localPosition = new Vector3(BoardCenter.x, BoardCenter.y, 0f);
+            var marker = boardGo.AddComponent<MapTile>();
+            marker.kind = MapTile.Kind.Board;
+            var collider = boardGo.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(1.8f, 1.1f);
+            MapPlaceholderFactory.CreateSquare(boardGo.transform, "Body", new Vector2(1.8f, 1.0f),
+                new Color(0.34f, 0.26f, 0.16f), 0);
+            MapPlaceholderFactory.CreateText(boardGo.transform, "Emoji", "📋", 44, 0.08f, Color.white, 8,
+                new Vector3(-0.5f, 0.02f, 0f));
+            MapPlaceholderFactory.CreateText(boardGo.transform, "Label", "견습생 관리", 34, 0.05f, Color.white, 8,
+                new Vector3(0.28f, 0.02f, 0f));
         }
 
         // 구역 바닥 패치 — 지면 아트가 있으면 이미 구워져 있으므로 색 사각형을 생략한다.
@@ -1497,5 +1885,23 @@ namespace WizardGarden
 
         /// <summary>복귀 요약 패널 (스모크 테스트).</summary>
         public OfflineSummaryWindow OfflineSummary => _offlineSummary;
+
+        /// <summary>견습생 관리 창 (스모크 테스트).</summary>
+        public ApprenticeRosterWindow RosterWindow => _rosterWindow;
+
+        /// <summary>게시판 월드 좌표 (스모크 테스트).</summary>
+        public Vector3 BoardWorldPosition => new Vector3(BoardCenter.x, BoardCenter.y, 0f);
+
+        /// <summary>현재 맵에 떠 있는 견습생 유닛 수 (스모크 테스트).</summary>
+        public int ActiveUnitCount => _units.Count;
+
+        /// <summary>해당 견습생의 유닛(있으면) — 위치·단계 확인용 (스모크 테스트).</summary>
+        public ApprenticeUnit UnitFor(string apprenticeId)
+        {
+            foreach (ApprenticeUnit unit in _units)
+                if (unit != null && unit.ApprenticeId == apprenticeId)
+                    return unit;
+            return null;
+        }
     }
 }

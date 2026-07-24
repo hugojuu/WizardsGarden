@@ -34,9 +34,10 @@ namespace WizardGarden.Tests
         }
 
         [Test]
-        public void CurrentVersion_IsFour()
+        public void CurrentVersion_IsFive()
         {
-            Assert.AreEqual(4, SaveData.CurrentVersion);
+            // S09에서 v5로 상향 (견습생 필드 추가 — vN 대응 갱신)
+            Assert.AreEqual(5, SaveData.CurrentVersion);
         }
 
         [Test]
@@ -50,7 +51,7 @@ namespace WizardGarden.Tests
             };
 
             Assert.IsTrue(SaveMigrator.TryMigrate(data));
-            Assert.AreEqual(4, data.version);
+            Assert.AreEqual(SaveData.CurrentVersion, data.version); // v3 → 현재 버전까지 체인
             Assert.IsNotNull(data.discoveredCodexIds);
             Assert.AreEqual(0, data.discoveredCodexIds.Count);
             Assert.AreEqual(0, data.starlightShards);

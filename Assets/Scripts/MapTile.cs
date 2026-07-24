@@ -13,7 +13,8 @@ namespace WizardGarden
             Bench = 1,
             ShopSlot = 2,
             Cauldron = 3,
-            Codex = 4
+            Codex = 4,
+            Board = 5   // 견습생 관리 게시판 (S09)
         }
 
         [Tooltip("클릭 대상 종류")]

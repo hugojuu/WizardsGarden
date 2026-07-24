@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace WizardGarden.Core
 {
     /// <summary>
-    /// JSON 세이브 스키마 (S02, v2는 S03, v3는 S04, v4는 S06). 버전 필드로 마이그레이션 대비.
+    /// JSON 세이브 스키마 (S02, v2는 S03, v3는 S04, v4는 S06, v5는 S09). 버전 필드로 마이그레이션 대비.
     /// 필드 기본값 version = 0: 버전 필드가 없는(손상된) JSON을 구버전으로 식별하기 위함 —
     /// 새 세이브는 반드시 CreateNew()로 생성할 것.
     /// </summary>
@@ -12,7 +12,7 @@ namespace WizardGarden.Core
     public class SaveData
     {
         /// <summary>현재 스키마 버전. 스키마 변경 시 +1 하고 SaveMigrator에 단계 추가.</summary>
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 5;
 
         /// <summary>밭 슬롯 저장 항목 (v2/S03). 빈 슬롯은 plantId = "".</summary>
         [Serializable]
@@ -82,6 +82,25 @@ namespace WizardGarden.Core
         /// <summary>보유 별빛 조각 (발견 보상, v4/S06).</summary>
         public long starlightShards;
 
+        /// <summary>견습생 보유·성장·배치 저장 항목 (v5/S09). 현재 스탯을 그대로 저장 — SO 없이 복원.</summary>
+        [Serializable]
+        public class ApprenticeEntry
+        {
+            public string id = "";
+            public int job;
+            public int rarity;
+            public int affinity;
+            public int magic;
+            public int trade;
+            public int luck;
+            public int level;
+            public int experience;
+            public bool placed;
+        }
+
+        /// <summary>보유 견습생 상태 (v5/S09).</summary>
+        public List<ApprenticeEntry> apprentices = new List<ApprenticeEntry>();
+
         /// <summary>현재 버전으로 초기화된 새 세이브 생성.</summary>
         public static SaveData CreateNew()
         {
@@ -125,6 +144,12 @@ namespace WizardGarden.Core
                         data.discoveredCodexIds ??= new List<string>();
                         data.starlightShards = 0;
                         data.version = 4;
+                        break;
+                    case 4:
+                        // v4 → v5 (S09): 견습생 목록 추가 — 구세이브는 빈 목록.
+                        // (일반 8명 시딩은 어댑터가 SO에서 처리 — 목록이 비면 채워 넣는다.)
+                        data.apprentices ??= new List<SaveData.ApprenticeEntry>();
+                        data.version = 5;
                         break;
                     default:
                         return false;

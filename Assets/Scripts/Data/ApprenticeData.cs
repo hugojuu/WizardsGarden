@@ -39,6 +39,13 @@ namespace WizardGarden.Data
         [Min(0)]
         public int luck;
 
+        [Header("표시 (플레이스홀더 — A04 정식 아트 스왑 지점)")]
+        [Tooltip("맵 유닛 플레이스홀더 이모지 (직군별 기본값 — 정원사🌱/연금술사⚗️/점원🏪)")]
+        public string displayEmoji = "🧑";
+
+        [Tooltip("맵 유닛 스프라이트 (A04 도트 스프라이트 — 비어 있으면 색+이모지 플레이스홀더). 코드 하드코딩 금지, 이 필드로만 연결")]
+        public Sprite mapSprite;
+
         [Header("패시브")]
         [Tooltip("패시브 ID 목록 (기획서 11장 — 패시브 데이터 테이블은 후속 세션). 예: passive_green_fingers")]
         public List<string> passiveIds = new List<string>();

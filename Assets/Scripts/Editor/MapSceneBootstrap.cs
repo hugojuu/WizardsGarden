@@ -104,6 +104,19 @@ namespace WizardGarden.EditorTools
             "Assets/Data/Potions/Potion_Mist.asset"
         };
 
+        // S09 — 일반 견습생 8명
+        private static readonly string[] ApprenticeAssetPaths =
+        {
+            "Assets/Data/Apprentices/Apprentice_Bomi.asset",
+            "Assets/Data/Apprentices/Apprentice_Mukmuk.asset",
+            "Assets/Data/Apprentices/Apprentice_Kkotbuni.asset",
+            "Assets/Data/Apprentices/Apprentice_Glim.asset",
+            "Assets/Data/Apprentices/Apprentice_Popo.asset",
+            "Assets/Data/Apprentices/Apprentice_Rin.asset",
+            "Assets/Data/Apprentices/Apprentice_Jambo.asset",
+            "Assets/Data/Apprentices/Apprentice_Seed.asset"
+        };
+
         // A02 — 맵 아트 (지면은 Bake Map Ground 결과, 소품은 PixelLab 생성분)
         private const string TilesFolder = "Assets/Art/Tiles/";
         private const string PropsFolder = "Assets/Art/Props/";
@@ -202,6 +215,16 @@ namespace WizardGarden.EditorTools
                     Debug.LogWarning($"[S06] 부산물 에셋 없음: {path} — 먼저 WizardGarden > Create Sample Data 실행");
             }
 
+            map.apprenticeOptions.Clear();
+            foreach (string path in ApprenticeAssetPaths)
+            {
+                var apprentice = AssetDatabase.LoadAssetAtPath<ApprenticeData>(path);
+                if (apprentice != null)
+                    map.apprenticeOptions.Add(apprentice);
+                else
+                    Debug.LogWarning($"[S09] 견습생 에셋 없음: {path} — 먼저 WizardGarden > Create Sample Data 실행");
+            }
+
             WireMapArt(map);
 
             // 구 GameScreen 탭 UI → 디버그 화면 강등 (삭제 금지 — F12/메뉴로 토글)
@@ -217,7 +240,7 @@ namespace WizardGarden.EditorTools
             EditorSceneManager.SaveScene(scene);
             EnsureSceneInBuildSettings();
 
-            Debug.Log($"[S04b/S06] 맵 씬 구성 완료 — MapScreen + 종자 {map.seedOptions.Count}종 + 레시피 {map.recipeOptions.Count}종 + 포션 {map.potionOptions.Count}종 + 부산물 {map.byproductOptions.Count}종 ({ScenePath})");
+            Debug.Log($"[S04b/S06/S09] 맵 씬 구성 완료 — MapScreen + 종자 {map.seedOptions.Count} + 레시피 {map.recipeOptions.Count} + 포션 {map.potionOptions.Count} + 부산물 {map.byproductOptions.Count} + 견습생 {map.apprenticeOptions.Count} ({ScenePath})");
         }
 
         [MenuItem("WizardGarden/Toggle Debug Screen (Play)")]
